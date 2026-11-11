@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useCurriculumStore, CustomSubject } from "@/store/useCurriculumStore";
 import { Question, Stage, SubjectType, SchoolClass } from "@/types/curriculum";
 import { sound } from "@/lib/audio";
+import { supabase } from "@/lib/supabase/client";
 import { EditStageModal } from "@/components/admin/EditStageModal";
 import { EditSubjectModal } from "@/components/admin/EditSubjectModal";
 import { EditClassModal } from "@/components/admin/EditClassModal";
@@ -43,9 +45,43 @@ import {
   Search,
   Filter,
   RotateCcw,
-  GraduationCap
+  GraduationCap,
+  ListOrdered,
+  ArrowUpDown,
+  Sliders,
+  Hash,
+  KeyRound,
+  X
 } from "lucide-react";
 import { SleekIcon, SleekBadgeIcon } from "@/components/SleekIcon";
+
+const NUMBER_WORDS: Record<number, string> = {
+  1: "One",
+  2: "Two",
+  3: "Three",
+  4: "Four",
+  5: "Five",
+  6: "Six",
+  7: "Seven",
+  8: "Eight",
+  9: "Nine",
+  10: "Ten",
+  11: "Eleven",
+  12: "Twelve",
+  13: "Thirteen",
+  14: "Fourteen",
+  15: "Fifteen",
+  16: "Sixteen",
+  17: "Seventeen",
+  18: "Eighteen",
+  19: "Nineteen",
+  20: "Twenty",
+};
+
+function formatChapterWord(num: number): string {
+  return NUMBER_WORDS[num] || String(num);
+}
+
 
 const COLOR_PRESETS = [
   { label: "Sky Blue", value: "#38bdf8" },
@@ -58,19 +94,56 @@ const COLOR_PRESETS = [
   { label: "Orange", value: "#f97316" },
 ];
 
-const SUPABASE_SQL_SCRIPT = `-- Run this in Supabase SQL Editor (supabase.com/dashboard/project/elpzdzevtwinoaspyngi/sql/new) to enable cloud storage for Classes, Subjects & MCQs:
+const SUPABASE_SQL_SCRIPT = `-- Run this in Supabase SQL Editor (supabase.com/dashboard/project/elpzdzevtwinoaspyngi/sql/new)
+-- Non-destructive Centralized Curriculum Synchronization & Admin RLS Setup:
 
--- 1. Create table for Custom Classes / Standards
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1. Administrator Allow-List & RLS Helper (Security: Students CANNOT write curriculum rows)
+CREATE TABLE IF NOT EXISTS public.curriculum_admins (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.curriculum_admins ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read own curriculum_admins row" ON public.curriculum_admins;
+CREATE POLICY "Admins can read own curriculum_admins row"
+  ON public.curriculum_admins FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE OR REPLACE FUNCTION public.is_curriculum_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    COALESCE((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false)
+    OR EXISTS (
+      SELECT 1 FROM public.curriculum_admins ca WHERE ca.user_id = auth.uid()
+    );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_curriculum_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_curriculum_admin() TO anon, authenticated;
+
+-- 2. Custom Classes / Standards
 CREATE TABLE IF NOT EXISTS public.custom_classes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
   icon TEXT DEFAULT '🎓',
   display_order INTEGER DEFAULT 1,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE IF EXISTS public.custom_classes
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
--- 2. Create / Update table for Custom Subjects (with grade/class link)
+-- 3. Custom Subjects
 CREATE TABLE IF NOT EXISTS public.custom_subjects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -80,13 +153,14 @@ CREATE TABLE IF NOT EXISTS public.custom_subjects (
   badge_bg TEXT,
   border_color TEXT,
   grade TEXT DEFAULT 'grade_9',
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE IF EXISTS public.custom_subjects
+  ADD COLUMN IF NOT EXISTS grade TEXT DEFAULT 'grade_9',
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
-ALTER TABLE public.custom_subjects 
-ADD COLUMN IF NOT EXISTS grade TEXT DEFAULT 'grade_9';
-
--- 3. Create table for Custom Stages & MCQs
+-- 4. Custom Stages & MCQs (with chapter_number)
 CREATE TABLE IF NOT EXISTS public.custom_stages (
   id TEXT PRIMARY KEY,
   subject_id TEXT NOT NULL,
@@ -94,6 +168,7 @@ CREATE TABLE IF NOT EXISTS public.custom_stages (
   subject_stage_number INTEGER DEFAULT 1,
   grade TEXT DEFAULT 'grade_9',
   chapter TEXT NOT NULL,
+  chapter_number INTEGER,
   topic TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
@@ -101,10 +176,50 @@ CREATE TABLE IF NOT EXISTS public.custom_stages (
   difficulty TEXT DEFAULT 'Medium',
   xp_reward INTEGER DEFAULT 100,
   questions JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE IF EXISTS public.custom_stages
+  ADD COLUMN IF NOT EXISTS chapter_number INTEGER,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- 5. Centralized Chapter Ordering (Built-in + Custom Chapters)
+CREATE TABLE IF NOT EXISTS public.curriculum_chapter_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  grade TEXT NOT NULL DEFAULT 'grade_9',
+  subject_id TEXT NOT NULL,
+  chapter_name TEXT NOT NULL,
+  chapter_number INTEGER NOT NULL CHECK (chapter_number >= 1 AND chapter_number <= 999),
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_curriculum_chapter_order UNIQUE (grade, subject_id, chapter_name)
 );
 
--- 4. Create table for multiplayer rooms
+-- 6. Centralized Stage Ordering (Built-in + Custom Stages)
+CREATE TABLE IF NOT EXISTS public.curriculum_stage_orders (
+  stage_id TEXT PRIMARY KEY,
+  grade TEXT NOT NULL DEFAULT 'grade_9',
+  subject_id TEXT NOT NULL,
+  chapter_name TEXT NOT NULL DEFAULT 'Core Curriculum',
+  stage_order INTEGER NOT NULL CHECK (stage_order >= 1 AND stage_order <= 9999),
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 7. Centralized Built-in Curriculum Deletion Tombstones
+CREATE TABLE IF NOT EXISTS public.deleted_curriculum_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_type TEXT NOT NULL CHECK (item_type IN ('class', 'subject', 'stage')),
+  item_id TEXT NOT NULL,
+  item_label TEXT,
+  deleted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  deleted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_deleted_curriculum_item UNIQUE (item_type, item_id)
+);
+
+-- 8. Multiplayer Rooms (Duels & Tournaments)
 CREATE TABLE IF NOT EXISTS public.multiplayer_rooms (
   id TEXT PRIMARY KEY,
   room_code TEXT UNIQUE NOT NULL,
@@ -125,32 +240,57 @@ CREATE TABLE IF NOT EXISTS public.multiplayer_rooms (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Enable RLS and public policies (safe idempotent rerun)
+-- 9. Strict Admin Write / Public Read RLS Policies
 ALTER TABLE public.custom_classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.curriculum_chapter_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.curriculum_stage_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deleted_curriculum_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.multiplayer_rooms ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read custom_classes" ON public.custom_classes;
 DROP POLICY IF EXISTS "Allow public write custom_classes" ON public.custom_classes;
+DROP POLICY IF EXISTS "Admin write custom_classes" ON public.custom_classes;
 CREATE POLICY "Allow public read custom_classes" ON public.custom_classes FOR SELECT USING (true);
-CREATE POLICY "Allow public write custom_classes" ON public.custom_classes FOR ALL USING (true);
-ALTER TABLE public.custom_stages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.multiplayer_rooms ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin write custom_classes" ON public.custom_classes FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
 
 DROP POLICY IF EXISTS "Allow public read custom_subjects" ON public.custom_subjects;
-DROP POLICY IF EXISTS "Allow public read custom_stages" ON public.custom_stages;
 DROP POLICY IF EXISTS "Allow public write custom_subjects" ON public.custom_subjects;
+DROP POLICY IF EXISTS "Admin write custom_subjects" ON public.custom_subjects;
+CREATE POLICY "Allow public read custom_subjects" ON public.custom_subjects FOR SELECT USING (true);
+CREATE POLICY "Admin write custom_subjects" ON public.custom_subjects FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
+DROP POLICY IF EXISTS "Allow public read custom_stages" ON public.custom_stages;
 DROP POLICY IF EXISTS "Allow public write custom_stages" ON public.custom_stages;
+DROP POLICY IF EXISTS "Admin write custom_stages" ON public.custom_stages;
+CREATE POLICY "Allow public read custom_stages" ON public.custom_stages FOR SELECT USING (true);
+CREATE POLICY "Admin write custom_stages" ON public.custom_stages FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
+DROP POLICY IF EXISTS "Public read curriculum_chapter_orders" ON public.curriculum_chapter_orders;
+DROP POLICY IF EXISTS "Admin write curriculum_chapter_orders" ON public.curriculum_chapter_orders;
+CREATE POLICY "Public read curriculum_chapter_orders" ON public.curriculum_chapter_orders FOR SELECT USING (true);
+CREATE POLICY "Admin write curriculum_chapter_orders" ON public.curriculum_chapter_orders FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
+DROP POLICY IF EXISTS "Public read curriculum_stage_orders" ON public.curriculum_stage_orders;
+DROP POLICY IF EXISTS "Admin write curriculum_stage_orders" ON public.curriculum_stage_orders;
+CREATE POLICY "Public read curriculum_stage_orders" ON public.curriculum_stage_orders FOR SELECT USING (true);
+CREATE POLICY "Admin write curriculum_stage_orders" ON public.curriculum_stage_orders FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
+DROP POLICY IF EXISTS "Public read deleted_curriculum_items" ON public.deleted_curriculum_items;
+DROP POLICY IF EXISTS "Admin write deleted_curriculum_items" ON public.deleted_curriculum_items;
+CREATE POLICY "Public read deleted_curriculum_items" ON public.deleted_curriculum_items FOR SELECT USING (true);
+CREATE POLICY "Admin write deleted_curriculum_items" ON public.deleted_curriculum_items FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
 DROP POLICY IF EXISTS "Allow public read multiplayer_rooms" ON public.multiplayer_rooms;
 DROP POLICY IF EXISTS "Allow public write multiplayer_rooms" ON public.multiplayer_rooms;
-
-CREATE POLICY "Allow public read custom_subjects" ON public.custom_subjects FOR SELECT USING (true);
-CREATE POLICY "Allow public read custom_stages" ON public.custom_stages FOR SELECT USING (true);
-CREATE POLICY "Allow public write custom_subjects" ON public.custom_subjects FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public write custom_stages" ON public.custom_stages FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read multiplayer_rooms" ON public.multiplayer_rooms FOR SELECT USING (true);
 CREATE POLICY "Allow public write multiplayer_rooms" ON public.multiplayer_rooms FOR ALL USING (true) WITH CHECK (true);
+
+-- Grant your Supabase Auth user curriculum admin privileges (replace with your email):
+-- INSERT INTO public.curriculum_admins (user_id, email)
+-- SELECT id, email FROM auth.users WHERE email = 'your-admin@email.com'
+-- ON CONFLICT (user_id) DO NOTHING;
 `;
 
 export default function AdminPage() {
@@ -173,17 +313,41 @@ export default function AdminPage() {
     deleteSubject,
     deletedSubjectIds,
     restoreAllDefaultSubjects,
+    deletedStageIds,
+    restoreAllDefaultStages,
     syncWithSupabase,
     checkSupabaseHealth,
     pushLocalToCloud,
     cloudSyncStatus,
-    cloudSyncMessage
+    cloudSyncMessage,
+    chapterOrders,
+    stageOrders,
+    setChapterNumber,
+    batchSetChapterNumbers,
+    resetChapterNumbers,
+    setStageOrder,
+    isCloudAdmin,
+    checkCloudAdminStatus
   } = useCurriculumStore();
 
-  const [activeTab, setActiveTab] = useState<"csv" | "upload" | "subjects" | "classes" | "manage" | "users" | "sql">("csv");
+  const [activeTab, setActiveTab] = useState<"csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "users" | "sql">("csv");
+  
+  // Chapter Ordering Management State
+  const [orderGrade, setOrderGrade] = useState<string>("grade_9");
+  const [orderSubject, setOrderSubject] = useState<string>("science");
+  const [chapterEdits, setChapterEdits] = useState<Record<string, number>>({});
+  const [chapterSearch, setChapterSearch] = useState<string>("");
   const [copiedSql, setCopiedSql] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [isPushingCloud, setIsPushingCloud] = useState(false);
+
+  // Supabase Cloud Admin Auth State
+  const [isCloudAuthOpen, setIsCloudAuthOpen] = useState(false);
+  const [cloudAdminEmail, setCloudAdminEmail] = useState("");
+  const [cloudAdminPassword, setCloudAdminPassword] = useState("");
+  const [cloudAuthBusy, setCloudAuthBusy] = useState(false);
+  const [cloudAuthError, setCloudAuthError] = useState<string | null>(null);
+  const [cloudUserEmail, setCloudUserEmail] = useState<string | null>(null);
 
   // Security Gate State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -242,10 +406,12 @@ export default function AdminPage() {
 
   const allClasses = getAllClasses();
   const allSubjects = getAllSubjects();
+  const allStages = getAllStages();
 
   // Manual Form State
   const [subjectId, setSubjectId] = useState<string>(allSubjects[0]?.id || "computer_science");
   const [chapter, setChapter] = useState<string>("");
+  const [manualChapterNumber, setManualChapterNumber] = useState<number | "">("");
   const [topic, setTopic] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
@@ -271,6 +437,7 @@ export default function AdminPage() {
   // CSV Upload State (For specific stage of specific chapter of subject)
   const [csvSubjectId, setCsvSubjectId] = useState<string>(allSubjects[0]?.id || "computer_science");
   const [csvChapter, setCsvChapter] = useState<string>("");
+  const [csvChapterNumber, setCsvChapterNumber] = useState<number | "">("");
   const [csvTopic, setCsvTopic] = useState<string>("");
   const [csvTitle, setCsvTitle] = useState<string>("");
   const [csvDifficulty, setCsvDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
@@ -305,11 +472,94 @@ export default function AdminPage() {
   useEffect(() => {
     checkSupabaseHealth();
     syncWithSupabase();
-  }, [checkSupabaseHealth, syncWithSupabase]);
+    checkCloudAdminStatus();
+
+    supabase.auth.getSession().then(({ data }) => {
+      setCloudUserEmail(data.session?.user?.email ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCloudUserEmail(session?.user?.email ?? null);
+      checkCloudAdminStatus();
+      syncWithSupabase({ force: true });
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [checkSupabaseHealth, syncWithSupabase, checkCloudAdminStatus]);
 
   const showNotification = (message: string, type: "success" | "error" = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
+  };
+
+  const reportCloudAction = (
+    res: { success: boolean; cloudSynced?: boolean; rlsBlocked?: boolean; error?: string },
+    successMsg: string,
+    localOnlyMsg?: string
+  ): boolean => {
+    if (!res.success) {
+      sound.playIncorrect();
+      if (res.rlsBlocked) {
+        setIsCloudAuthOpen(true);
+        showNotification(res.error || "Cloud Admin sign-in required by Supabase RLS.", "error");
+      } else {
+        showNotification(res.error || "Operation failed.", "error");
+      }
+      return false;
+    }
+    sound.playUnlock();
+    if (res.cloudSynced === false) {
+      showNotification(
+        localOnlyMsg || `${successMsg} (Saved locally only — will sync when Supabase reconnects.)`,
+        "error"
+      );
+    } else {
+      showNotification(successMsg, "success");
+    }
+    return true;
+  };
+
+  const handleCloudAdminSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCloudAuthError(null);
+    if (!cloudAdminEmail.trim() || !cloudAdminPassword) {
+      setCloudAuthError("Enter both your Supabase admin email and password.");
+      return;
+    }
+    setCloudAuthBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cloudAdminEmail.trim(),
+      password: cloudAdminPassword,
+    });
+    if (error) {
+      setCloudAuthBusy(false);
+      setCloudAuthError(error.message);
+      sound.playIncorrect();
+      return;
+    }
+    const adminAllowed = await checkCloudAdminStatus();
+    setCloudAuthBusy(false);
+    setCloudUserEmail(data.user?.email ?? cloudAdminEmail.trim());
+    if (adminAllowed) {
+      sound.playUnlock();
+      setIsCloudAuthOpen(false);
+      setCloudAdminPassword("");
+      showNotification(`Signed in as Cloud Admin (${data.user?.email || cloudAdminEmail.trim()}).`);
+      await syncWithSupabase({ force: true });
+    } else {
+      sound.playIncorrect();
+      setCloudAuthError("Signed in, but this account is not listed in public.curriculum_admins yet.");
+    }
+  };
+
+  const handleCloudAdminSignOut = async () => {
+    await supabase.auth.signOut();
+    setCloudUserEmail(null);
+    await checkCloudAdminStatus();
+    sound.playClick();
+    showNotification("Signed out of Cloud Admin Supabase session.");
   };
 
   const handlePushToCloud = async () => {
@@ -318,10 +568,18 @@ export default function AdminPage() {
     setIsPushingCloud(false);
     if (res.success) {
       sound.playUnlock();
-      showNotification(`Cloud sync complete! Pushed ${res.stagesSynced} stages and ${res.subjectsSynced} subjects to Supabase.`);
+      showNotification(
+        `Cloud sync complete! Pushed ${res.classesSynced} classes, ${res.subjectsSynced} subjects, ${res.stagesSynced} stages, ${res.ordersSynced ?? 0} order rules, and ${res.deletionsSynced ?? 0} deletions.`
+      );
       await checkSupabaseHealth();
+      await syncWithSupabase({ force: true });
+    } else if (res.rlsBlocked) {
+      sound.playIncorrect();
+      setIsCloudAuthOpen(true);
+      showNotification(res.error || "Sign in as a Supabase Cloud Admin before pushing changes.", "error");
     } else {
-      showNotification(`Cloud sync failed: ${res.error || "Please run SQL script first in Supabase."}`, "error");
+      sound.playIncorrect();
+      showNotification(`Cloud sync failed: ${res.error || "Please run the updated SQL setup in Supabase."}`, "error");
     }
   };
 
@@ -476,18 +734,13 @@ export default function AdminPage() {
       showNotification("Chapter name is required (e.g. Chapter One: Computer Systems).", "error");
       return;
     }
-    if (!csvTopic.trim()) {
-      showNotification("Topic name is required (e.g. CPU Architecture & Memory).", "error");
-      return;
-    }
-    if (!csvTitle.trim()) {
-      showNotification("Stage title is required.", "error");
-      return;
-    }
     if (csvParsedQuestions.length === 0) {
       showNotification("Please select a valid CSV file containing MCQs.", "error");
       return;
     }
+
+    const finalTopic = csvTopic.trim() || csvChapter.trim() || "General Practice";
+    const finalTitle = csvTitle.trim() || (csvTopic.trim() ? `${csvTopic.trim()} Quest` : `${csvChapter.trim()} Challenge`);
 
     const selectedSubjectObj = allSubjects.find((s) => s.id === csvSubjectId) || allSubjects[0];
 
@@ -507,25 +760,25 @@ export default function AdminPage() {
       subjectStageNumber: customStages.filter((s) => s.subject === csvSubjectId).length + 1,
       grade: csvGrade as any,
       chapter: csvChapter.trim(),
-      topic: csvTopic.trim(),
-      title: csvTitle.trim(),
-      description: csvLearningObjective.trim() || `Quiz stage covering ${csvTopic.trim()}`,
-      learningObjective: csvLearningObjective.trim() || `Master core principles of ${csvTopic.trim()}`,
+      chapterNumber: csvChapterNumber !== "" ? Number(csvChapterNumber) : undefined,
+      topic: finalTopic,
+      title: finalTitle,
+      description: csvLearningObjective.trim() || `Quiz stage covering ${finalTopic}`,
+      learningObjective: csvLearningObjective.trim() || `Master core principles of ${finalTopic}`,
       difficulty: csvDifficulty,
       xpReward: Number(csvXpReward) || 100,
       questions: formattedQuestions,
     };
 
     const res = await addStage(newStage);
-    if (res.success) {
-      sound.playUnlock();
-      if (res.cloudSynced) {
-        showNotification(`Published "${newStage.title}" with ${formattedQuestions.length} MCQs to Supabase Cloud & Local Storage!`);
-      } else {
-        showNotification(`Stage saved to Local Browser Storage only (Supabase tables missing. Run SQL in 'Supabase Cloud Setup' tab to enable cloud sync).`, "error");
-      }
+    if (reportCloudAction(
+      res,
+      `Published "${newStage.title}" with ${formattedQuestions.length} MCQs to Supabase Cloud!`,
+      `Stage "${newStage.title}" saved locally only (${res.error || "Supabase offline"}).`
+    )) {
       // Reset CSV form
       setCsvChapter("");
+      setCsvChapterNumber("");
       setCsvTopic("");
       setCsvTitle("");
       setCsvLearningObjective("");
@@ -581,14 +834,9 @@ export default function AdminPage() {
       showNotification("Chapter name is required (e.g. Chapter One: Computer Systems).", "error");
       return;
     }
-    if (!topic.trim()) {
-      showNotification("Topic name is required (e.g. CPU Architecture & Memory).", "error");
-      return;
-    }
-    if (!title.trim()) {
-      showNotification("Stage title is required.", "error");
-      return;
-    }
+
+    const finalTopic = topic.trim() || chapter.trim() || "General Practice";
+    const finalTitle = title.trim() || (topic.trim() ? `${topic.trim()} Quest` : `${chapter.trim()} Challenge`);
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
@@ -622,24 +870,24 @@ export default function AdminPage() {
       subjectStageNumber: customStages.filter((s) => s.subject === subjectId).length + 1,
       grade: grade as any,
       chapter: chapter.trim(),
-      topic: topic.trim(),
-      title: title.trim(),
-      description: learningObjective.trim() || `Quiz stage covering ${topic.trim()}`,
-      learningObjective: learningObjective.trim() || `Master core principles of ${topic.trim()}`,
+      chapterNumber: manualChapterNumber !== "" ? Number(manualChapterNumber) : undefined,
+      topic: finalTopic,
+      title: finalTitle,
+      description: learningObjective.trim() || `Quiz stage covering ${finalTopic}`,
+      learningObjective: learningObjective.trim() || `Master core principles of ${finalTopic}`,
       difficulty,
       xpReward: Number(xpReward) || 100,
       questions: formattedQuestions,
     };
 
     const res = await addStage(newStage);
-    if (res.success) {
-      sound.playUnlock();
-      if (res.cloudSynced) {
-        showNotification(`Published "${newStage.title}" with ${formattedQuestions.length} MCQs to Supabase Cloud & Local Storage!`);
-      } else {
-        showNotification(`Stage saved to Local Browser Storage only (Supabase tables missing. Run SQL in 'Supabase Cloud Setup' tab to enable cloud sync).`, "error");
-      }
+    if (reportCloudAction(
+      res,
+      `Published "${newStage.title}" with ${formattedQuestions.length} MCQs to Supabase Cloud!`,
+      `Stage "${newStage.title}" saved locally only (${res.error || "Supabase offline"}).`
+    )) {
       setChapter("");
+      setManualChapterNumber("");
       setTopic("");
       setTitle("");
       setLearningObjective("");
@@ -674,20 +922,18 @@ export default function AdminPage() {
     };
 
     const res = await addSubject(newSubject);
-    sound.playUnlock();
-    if (res.cloudSynced) {
-      showNotification(`Subject "${newSubject.name}" created and synced to Supabase Cloud!`);
-    } else {
-      showNotification(`Subject "${newSubject.name}" created locally (Supabase table missing. Run SQL setup to sync to cloud).`, "error");
+    if (reportCloudAction(
+      res,
+      `Subject "${newSubject.name}" created and synced to Supabase Cloud!`,
+      `Subject "${newSubject.name}" created locally (${res.error || "Supabase offline"}).`
+    )) {
+      setCsvSubjectId(newSubject.id);
+      setSubjectId(newSubject.id);
+      setNewSubName("");
+      setNewSubId("");
+      setNewSubDesc("");
+      setActiveTab("csv");
     }
-    sound.playUnlock();
-    showNotification(`New Subject "${newSubject.name}" created successfully!`);
-    setCsvSubjectId(newSubject.id);
-    setSubjectId(newSubject.id);
-    setNewSubName("");
-    setNewSubId("");
-    setNewSubDesc("");
-    setActiveTab("csv");
   };
 
   const handleCreateClass = async (e: React.FormEvent) => {
@@ -705,15 +951,15 @@ export default function AdminPage() {
       displayOrder: Number(newClassOrder) || 1,
     });
 
-    if (res.success) {
-      sound.playUnlock();
-      showNotification(`Class / Standard "${newClassName.trim()}" created successfully!`);
+    if (reportCloudAction(
+      res,
+      `Class / Standard "${newClassName.trim()}" created and synced to Supabase Cloud!`,
+      `Class "${newClassName.trim()}" saved locally (${res.error || "Supabase offline"}).`
+    )) {
       setNewClassName("");
       setNewClassId("");
       setNewClassDesc("");
       setNewClassIcon("🎓");
-    } else {
-      showNotification(res.error || "Failed to create class", "error");
     }
   };
 
@@ -727,27 +973,30 @@ export default function AdminPage() {
   // 1. SECURITY LOCK SCREEN GATE
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4 selection:bg-amber-500 selection:text-black">
-        <div className="w-full max-w-md p-8 rounded-3xl border border-white/10 bg-[#0c0c0c] shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div className="min-h-screen educhain-bg relative flex items-center justify-center p-4 selection:bg-amber-500 selection:text-black overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-96 h-96 glow-orb-blue pointer-events-none -z-10" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 glow-orb-cyan pointer-events-none -z-10" />
+
+        <div className="relative z-10 w-full max-w-md mx-auto p-8 rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
           
-          <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-inner">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.2)]">
             <Shield className="w-8 h-8" />
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+            <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-bold">
               Restricted Area
             </span>
-            <h2 className="text-2xl font-extrabold text-white tracking-tight mt-2">
+            <h2 className="text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight mt-2 font-space-grotesk">
               EduChain Admin Security
             </h2>
-            <p className="text-xs text-neutral-400 leading-relaxed max-w-xs mx-auto">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-xs mx-auto">
               Please enter your administrator security passcode to manage the curriculum and student database.
             </p>
           </div>
 
           {authError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium flex items-center justify-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center justify-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{authError}</span>
             </div>
@@ -755,7 +1004,7 @@ export default function AdminPage() {
 
           <form onSubmit={handleUnlockAdmin} className="space-y-4 text-left">
             <div>
-              <label className="block text-xs font-mono font-semibold text-neutral-400 uppercase mb-1.5">
+              <label className="block text-xs font-mono font-semibold text-neutral-600 dark:text-neutral-400 uppercase mb-1.5">
                 Admin Master Passcode
               </label>
               <div className="relative">
@@ -765,35 +1014,35 @@ export default function AdminPage() {
                   value={passcodeInput}
                   onChange={(e) => setPasscodeInput(e.target.value)}
                   placeholder="Enter admin passcode"
-                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-sm text-neutral-900 dark:text-white placeholder:text-neutral-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPasscode(!showPasscode)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black dark:hover:text-white"
                 >
                   {showPasscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               <div className="flex items-center justify-between mt-1.5 text-[11px] text-neutral-500">
                 <span>Default: <code>admin123</code></span>
-                <span className="font-mono text-neutral-600">Encrypted</span>
+                <span className="font-mono text-neutral-500">Encrypted</span>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl text-xs font-bold btn-vercel-primary flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
+              className="w-full py-3 rounded-xl text-xs font-bold btn-educhain-primary flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
             >
               <Unlock className="w-4 h-4" />
               <span>Unlock Admin Panel</span>
             </button>
           </form>
 
-          <div className="pt-2 border-t border-white/5">
+          <div className="pt-2 border-t border-neutral-100 dark:border-white/5">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Return to Student App</span>
@@ -806,10 +1055,10 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100 font-sans selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-black">
+    <div className="min-h-screen educhain-bg text-neutral-900 dark:text-neutral-100 font-sans selection:bg-blue-600 selection:text-white relative">
       
       {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-neutral-200 dark:border-white/10 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-neutral-200 dark:border-white/10 bg-white/80 dark:bg-[#101827]/85 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link 
@@ -819,16 +1068,23 @@ export default function AdminPage() {
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-tight">EduChain Studio</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold uppercase">
-                  Admin Panel
-                </span>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/logo.png"
+                alt="EduChain"
+                className="w-8 h-8 rounded-xl object-cover border border-blue-500/20 shadow-sm shrink-0"
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-base tracking-tight">EduChain Studio</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold uppercase">
+                    Admin Panel
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                  Curriculum Content & MCQ Manager
+                </p>
               </div>
-              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                Curriculum Content & MCQ Manager
-              </p>
             </div>
           </div>
 
@@ -851,6 +1107,28 @@ export default function AdminPage() {
                 <span>Local Storage Only</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                if (isCloudAdmin) {
+                  handleCloudAdminSignOut();
+                } else {
+                  setCloudAuthError(null);
+                  setIsCloudAuthOpen(true);
+                }
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors ${
+                isCloudAdmin
+                  ? "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/20"
+                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 hover:bg-amber-500/20"
+              }`}
+              title={isCloudAdmin ? `Authenticated as ${cloudUserEmail || "Cloud Admin"} (Click to sign out)` : "Sign in with Supabase Cloud Admin account to write changes"}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{isCloudAdmin ? "Cloud Admin" : "Cloud Sign In"}</span>
+            </button>
 
             <button
               disabled={isPushingCloud}
@@ -959,7 +1237,8 @@ export default function AdminPage() {
           {[
             { id: "csv", label: "Upload via CSV File", icon: FileSpreadsheet },
             { id: "upload", label: "Manual Form MCQ Builder", icon: Plus },
-            { id: "manage", label: `Manage Stages (${customStages.length} Custom)`, icon: BookOpen },
+            { id: "manage", label: `Manage Stages (${allStages.length})`, icon: BookOpen },
+            { id: "chapters", label: "Chapter Ordering", icon: ListOrdered },
             { id: "subjects", label: `Manage Subjects (${allSubjects.length})`, icon: Layers },
             { id: "classes", label: `Manage Classes (${allClasses.length})`, icon: GraduationCap },
             { id: "users", label: "Scholars & Users Data", icon: Users },
@@ -976,8 +1255,8 @@ export default function AdminPage() {
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
-                    : "bg-white dark:bg-[#0a0a0a] text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-white/10 hover:text-black dark:hover:text-white"
+                    ? "btn-educhain-primary text-white shadow-md shadow-blue-500/20"
+                    : "bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-white/10 hover:text-black dark:hover:text-white"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -994,7 +1273,7 @@ export default function AdminPage() {
           <form onSubmit={handleSaveCSVStage} className="space-y-8 animate-in fade-in duration-200">
             
             {/* Header info & Template download */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-4 border-b border-neutral-100 dark:border-white/5">
                 <div>
                   <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -1009,7 +1288,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={handleDownloadSampleCSV}
-                  className="btn-vercel-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 self-start sm:self-auto shrink-0"
+                  className="btn-educhain-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 self-start sm:self-auto shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Sample CSV Template</span>
@@ -1017,10 +1296,11 @@ export default function AdminPage() {
               </div>
 
               {/* Classification Fields: Class, Subject, Chapter & Topic (REQUIRED) */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Classification & Chapter Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
                 
                 {/* Class Selector */}
-                <div>
+                <div className="lg:col-span-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase">
                       Class / Grade <span className="text-rose-500">*</span>
@@ -1033,28 +1313,33 @@ export default function AdminPage() {
                       + New Class
                     </button>
                   </div>
-                  <select
-                    value={csvGrade}
-                    onChange={(e) => {
-                      const newG = e.target.value;
-                      setCsvGrade(newG);
-                      const matchingSubs = allSubjects.filter((s) => (s.grade || "grade_9") === newG);
-                      if (matchingSubs.length > 0) {
-                        setCsvSubjectId(matchingSubs[0].id);
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-semibold focus:outline-none"
-                  >
-                    {allClasses.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.icon} {cls.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                      <SleekIcon name={allClasses.find((c) => c.id === csvGrade)?.icon || csvGrade} className="w-4 h-4" />
+                    </div>
+                    <select
+                      value={csvGrade}
+                      onChange={(e) => {
+                        const newG = e.target.value;
+                        setCsvGrade(newG);
+                        const matchingSubs = allSubjects.filter((s) => (s.grade || "grade_9") === newG);
+                        if (matchingSubs.length > 0) {
+                          setCsvSubjectId(matchingSubs[0].id);
+                        }
+                      }}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-semibold focus:outline-none"
+                    >
+                      {allClasses.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Subject Selector */}
-                <div>
+                <div className="lg:col-span-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase">
                       Target Subject <span className="text-rose-500">*</span>
@@ -1070,87 +1355,110 @@ export default function AdminPage() {
                       + New Subject
                     </button>
                   </div>
-                  <select
-                    value={csvSubjectId}
-                    onChange={(e) => setCsvSubjectId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-semibold focus:outline-none"
-                  >
-                    {allSubjects.filter((s) => (s.grade || "grade_9") === csvGrade).length > 0 ? (
-                      allSubjects
-                        .filter((s) => (s.grade || "grade_9") === csvGrade)
-                        .map((sub) => (
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                      <SleekIcon name={allSubjects.find((s) => s.id === csvSubjectId)?.icon || csvSubjectId} className="w-4 h-4" />
+                    </div>
+                    <select
+                      value={csvSubjectId}
+                      onChange={(e) => setCsvSubjectId(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-semibold focus:outline-none"
+                    >
+                      {allSubjects.filter((s) => (s.grade || "grade_9") === csvGrade).length > 0 ? (
+                        allSubjects
+                          .filter((s) => (s.grade || "grade_9") === csvGrade)
+                          .map((sub) => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.name}
+                            </option>
+                          ))
+                      ) : (
+                        allSubjects.map((sub) => (
                           <option key={sub.id} value={sub.id}>
-                            {sub.icon} {sub.name}
+                            {sub.name}
                           </option>
                         ))
-                    ) : (
-                      allSubjects.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.icon} {sub.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                      )}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Chapter Name Input (REQUIRED) */}
-                <div>
+                {/* Specific Chapter Name */}
+                <div className="lg:col-span-4">
                   <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
                     Specific Chapter Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Chapter One: Fundamentals of Computer"
+                    placeholder="e.g. Physical Quantities and Measurement"
                     value={csvChapter}
                     onChange={(e) => setCsvChapter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
                   />
                   <p className="text-[10px] text-neutral-400 mt-1">Classifies stage under this chapter header</p>
                 </div>
 
-                {/* Topic Name Input (REQUIRED) */}
-                <div>
+                {/* Chapter Number Input */}
+                <div className="lg:col-span-2">
                   <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
-                    Specific Topic Name <span className="text-rose-500">*</span>
+                    Chapter # <span className="text-neutral-400 font-normal lowercase">(opt)</span>
                   </label>
                   <input
-                    type="text"
-                    required
-                    placeholder="e.g. Von Neumann Architecture & CPU Registers"
-                    value={csvTopic}
-                    onChange={(e) => setCsvTopic(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    type="number"
+                    min="1"
+                    max="99"
+                    placeholder="e.g. 1"
+                    value={csvChapterNumber}
+                    onChange={(e) => setCsvChapterNumber(e.target.value ? parseInt(e.target.value, 10) : "")}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-mono text-center focus:outline-none"
                   />
-                  <p className="text-[10px] text-neutral-400 mt-1">Specific topic covered in this stage</p>
+                  <p className="text-[10px] text-neutral-400 mt-1">Numerical order</p>
                 </div>
 
               </div>
 
-              {/* Stage Title, Difficulty, Grade, XP */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-neutral-100 dark:border-white/5">
-                <div className="sm:col-span-2">
+              {/* Optional Topic & Stage Quest Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-neutral-100 dark:border-white/5">
+                <div>
                   <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
-                    Stage Quest Title <span className="text-rose-500">*</span>
+                    Specific Topic Name <span className="text-neutral-400 font-normal lowercase">(optional)</span>
                   </label>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. CPU Architecture Mastery Quest"
-                    value={csvTitle}
-                    onChange={(e) => setCsvTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                    placeholder="e.g. Von Neumann Architecture & CPU Registers (optional)"
+                    value={csvTopic}
+                    onChange={(e) => setCsvTopic(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
                   />
+                  <p className="text-[10px] text-neutral-400 mt-1">Defaults to chapter name if omitted</p>
                 </div>
 
                 <div>
+                  <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
+                    Stage Quest Title <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CPU Architecture Mastery Quest (optional)"
+                    value={csvTitle}
+                    onChange={(e) => setCsvTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                  />
+                  <p className="text-[10px] text-neutral-400 mt-1">Defaults to topic / chapter challenge if omitted</p>
+                </div>
+              </div>
+
+              {/* Difficulty & XP */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-neutral-100 dark:border-white/5">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
                     Difficulty
                   </label>
                   <select
                     value={csvDifficulty}
                     onChange={(e) => setCsvDifficulty(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   >
                     <option value="Easy">Easy</option>
                     <option value="Medium">Medium</option>
@@ -1158,7 +1466,7 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
                     XP Reward
                   </label>
@@ -1166,7 +1474,7 @@ export default function AdminPage() {
                     type="number"
                     value={csvXpReward}
                     onChange={(e) => setCsvXpReward(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   />
                 </div>
               </div>
@@ -1180,14 +1488,14 @@ export default function AdminPage() {
                   placeholder="e.g. Understand the difference between ALU, Control Unit and System Buses."
                   value={csvLearningObjective}
                   onChange={(e) => setCsvLearningObjective(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
                 />
               </div>
 
             </div>
 
             {/* CSV File Upload Dropzone */}
-            <div className="p-8 rounded-2xl border-2 border-dashed border-neutral-300 dark:border-white/15 bg-white dark:bg-[#0a0a0a] text-center shadow-sm">
+            <div className="p-8 rounded-2xl border-2 border-dashed border-neutral-300 dark:border-white/15 bg-white dark:bg-[#182438] text-center shadow-sm">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -1210,7 +1518,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-vercel-secondary text-xs px-5 py-2.5 rounded-xl font-semibold"
+                className="btn-educhain-secondary text-xs px-5 py-2.5 rounded-xl font-semibold"
               >
                 {csvFileName ? "Choose a Different CSV File" : "Select CSV File"}
               </button>
@@ -1233,7 +1541,7 @@ export default function AdminPage() {
                   </span>
                 </div>
 
-                <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#0a0a0a] divide-y divide-neutral-100 dark:divide-white/[0.04]">
+                <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#182438] divide-y divide-neutral-100 dark:divide-white/[0.04]">
                   {csvParsedQuestions.map((q, idx) => {
                     const letters = ["A", "B", "C", "D"];
                     return (
@@ -1287,14 +1595,14 @@ export default function AdminPage() {
                 </div>
 
                 {/* Publish Action Button */}
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#0a0a0a] border border-neutral-200 dark:border-white/10">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
                   <span className="text-xs text-neutral-500">
                     Will be created in <strong>{csvChapter || "Chapter"}</strong> as <strong>{csvTitle || "New Stage"}</strong>
                   </span>
 
                   <button
                     type="submit"
-                    className="btn-vercel-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="btn-educhain-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     <Check className="w-4 h-4" />
                     <span>Publish Stage with {csvParsedQuestions.length} CSV MCQs</span>
@@ -1313,7 +1621,7 @@ export default function AdminPage() {
           <form onSubmit={handleSaveStage} className="space-y-8 animate-in fade-in duration-200">
             
             {/* Step 1: Subject, Chapter & Topic (REQUIRED FIELDS) */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100 dark:border-white/5">
                 <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-600 dark:text-cyan-400 font-bold text-xs flex items-center justify-center font-mono">
                   1
@@ -1339,24 +1647,29 @@ export default function AdminPage() {
                       + New Class
                     </button>
                   </div>
-                  <select
-                    value={grade}
-                    onChange={(e) => {
-                      const newG = e.target.value;
-                      setGrade(newG);
-                      const matchingSubs = allSubjects.filter((s) => (s.grade || "grade_9") === newG);
-                      if (matchingSubs.length > 0) {
-                        setSubjectId(matchingSubs[0].id);
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-semibold focus:outline-none"
-                  >
-                    {allClasses.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.icon} {cls.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                      <SleekIcon name={allClasses.find((c) => c.id === grade)?.icon || grade} className="w-4 h-4" />
+                    </div>
+                    <select
+                      value={grade}
+                      onChange={(e) => {
+                        const newG = e.target.value;
+                        setGrade(newG);
+                        const matchingSubs = allSubjects.filter((s) => (s.grade || "grade_9") === newG);
+                        if (matchingSubs.length > 0) {
+                          setSubjectId(matchingSubs[0].id);
+                        }
+                      }}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-semibold focus:outline-none"
+                    >
+                      {allClasses.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Subject Selector */}
@@ -1376,43 +1689,65 @@ export default function AdminPage() {
                       + New Subject
                     </button>
                   </div>
-                  <select
-                    value={subjectId}
-                    onChange={(e) => setSubjectId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-semibold focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
-                  >
-                    {allSubjects.filter((s) => (s.grade || "grade_9") === grade).length > 0 ? (
-                      allSubjects
-                        .filter((s) => (s.grade || "grade_9") === grade)
-                        .map((sub) => (
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                      <SleekIcon name={allSubjects.find((s) => s.id === subjectId)?.icon || subjectId} className="w-4 h-4" />
+                    </div>
+                    <select
+                      value={subjectId}
+                      onChange={(e) => setSubjectId(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-semibold focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    >
+                      {allSubjects.filter((s) => (s.grade || "grade_9") === grade).length > 0 ? (
+                        allSubjects
+                          .filter((s) => (s.grade || "grade_9") === grade)
+                          .map((sub) => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.name}
+                            </option>
+                          ))
+                      ) : (
+                        allSubjects.map((sub) => (
                           <option key={sub.id} value={sub.id}>
-                            {sub.icon} {sub.name}
+                            {sub.name}
                           </option>
                         ))
-                    ) : (
-                      allSubjects.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.icon} {sub.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                      )}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Chapter Name Input (REQUIRED) */}
-                <div>
-                  <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
-                    Chapter Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Chapter One: Computer Systems"
-                    value={chapter}
-                    onChange={(e) => setChapter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
-                  />
-                  <p className="text-[10px] text-neutral-400 mt-1">Groups stages under this chapter header</p>
+                {/* Chapter Name & Number Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
+                      Chapter Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Physical Quantities and Measurement"
+                      value={chapter}
+                      onChange={(e) => setChapter(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    />
+                    <p className="text-[10px] text-neutral-400 mt-1">Groups stages under this chapter</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1.5">
+                      Chapter # (Opt)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      placeholder="e.g. 1 or 6"
+                      value={manualChapterNumber}
+                      onChange={(e) => setManualChapterNumber(e.target.value ? parseInt(e.target.value, 10) : "")}
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-mono text-center focus:outline-none"
+                    />
+                    <p className="text-[10px] text-neutral-400 mt-1">e.g. 6</p>
+                  </div>
                 </div>
 
                 {/* Topic Name Input (REQUIRED) */}
@@ -1426,7 +1761,7 @@ export default function AdminPage() {
                     placeholder="e.g. Von Neumann Architecture & CPU Buses"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
                   />
                   <p className="text-[10px] text-neutral-400 mt-1">Specific syllabus subtopic</p>
                 </div>
@@ -1446,7 +1781,7 @@ export default function AdminPage() {
                     placeholder="e.g. Internal Processor Architecture"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-white/30"
                   />
                 </div>
 
@@ -1457,7 +1792,7 @@ export default function AdminPage() {
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   >
                     <option value="Easy">Easy</option>
                     <option value="Medium">Medium</option>
@@ -1473,7 +1808,7 @@ export default function AdminPage() {
                     type="number"
                     value={xpReward}
                     onChange={(e) => setXpReward(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   />
                 </div>
 
@@ -1488,7 +1823,7 @@ export default function AdminPage() {
                   placeholder="e.g. Understand how the Control Unit and ALU execute instructions."
                   value={learningObjective}
                   onChange={(e) => setLearningObjective(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
                 />
               </div>
 
@@ -1512,7 +1847,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={handleAddQuestionRow}
-                  className="btn-vercel-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+                  className="btn-educhain-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Another Question</span>
@@ -1523,7 +1858,7 @@ export default function AdminPage() {
               {questions.map((q, qIdx) => (
                 <div 
                   key={qIdx}
-                  className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm space-y-4"
+                  className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm space-y-4"
                 >
                   <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-white/5">
                     <span className="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200">
@@ -1552,7 +1887,7 @@ export default function AdminPage() {
                       placeholder="e.g. Which register holds the address of the next instruction to be fetched from memory?"
                       value={q.question}
                       onChange={(e) => handleQuestionChange(qIdx, "question", e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
                     />
                   </div>
 
@@ -1614,7 +1949,7 @@ export default function AdminPage() {
                         placeholder="e.g. The Program Counter (PC) stores the address of the next instruction."
                         value={q.explanation}
                         onChange={(e) => handleQuestionChange(qIdx, "explanation", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                        className="w-full px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
                       />
                     </div>
 
@@ -1627,7 +1962,7 @@ export default function AdminPage() {
                         placeholder="e.g. cpu, memory, registers"
                         value={q.tags}
                         onChange={(e) => handleQuestionChange(qIdx, "tags", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs text-neutral-900 dark:text-white focus:outline-none"
+                        className="w-full px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs text-neutral-900 dark:text-white focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1637,11 +1972,11 @@ export default function AdminPage() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#0a0a0a] border border-neutral-200 dark:border-white/10">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={handleAddQuestionRow}
-                className="btn-vercel-secondary text-xs px-4 py-2 rounded-xl flex items-center gap-1.5"
+                className="btn-educhain-secondary text-xs px-4 py-2 rounded-xl flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Question</span>
@@ -1649,7 +1984,7 @@ export default function AdminPage() {
 
               <button
                 type="submit"
-                className="btn-vercel-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="btn-educhain-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <Check className="w-4 h-4" />
                 <span>Publish Stage & MCQs</span>
@@ -1666,7 +2001,7 @@ export default function AdminPage() {
           <div className="space-y-8 animate-in fade-in duration-200">
             
             {/* Create Subject Form */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-1">
                 Create New Academic Subject
               </h3>
@@ -1692,7 +2027,7 @@ export default function AdminPage() {
                           setNewSubId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "_"));
                         }
                       }}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                     />
                   </div>
 
@@ -1700,17 +2035,22 @@ export default function AdminPage() {
                     <label className="block text-xs font-mono font-semibold uppercase mb-1.5">
                       Target Class <span className="text-rose-500">*</span>
                     </label>
-                    <select
-                      value={newSubGrade}
-                      onChange={(e) => setNewSubGrade(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-semibold focus:outline-none"
-                    >
-                      {allClasses.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
-                          {cls.icon} {cls.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                        <SleekIcon name={allClasses.find((c) => c.id === newSubGrade)?.icon || newSubGrade} className="w-4 h-4" />
+                      </div>
+                      <select
+                        value={newSubGrade}
+                        onChange={(e) => setNewSubGrade(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-semibold focus:outline-none"
+                      >
+                        {allClasses.map((cls) => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -1722,7 +2062,7 @@ export default function AdminPage() {
                       placeholder="e.g. physics"
                       value={newSubId}
                       onChange={(e) => setNewSubId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-mono focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-mono focus:outline-none"
                     />
                   </div>
 
@@ -1735,7 +2075,7 @@ export default function AdminPage() {
                       placeholder="e.g. ⚡ or 🔬 or 📖"
                       value={newSubIcon}
                       onChange={(e) => setNewSubIcon(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                     />
                   </div>
 
@@ -1750,7 +2090,7 @@ export default function AdminPage() {
                     placeholder="e.g. Kinematics, Forces, Waves & Modern Physics"
                     value={newSubDesc}
                     onChange={(e) => setNewSubDesc(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   />
                 </div>
 
@@ -1781,7 +2121,7 @@ export default function AdminPage() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2"
+                    className="btn-educhain-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Create Subject</span>
@@ -1791,7 +2131,7 @@ export default function AdminPage() {
             </div>
 
             {/* List of Existing Subjects */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a]">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438]">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
@@ -1804,12 +2144,12 @@ export default function AdminPage() {
 
                 {deletedSubjectIds && deletedSubjectIds.length > 0 && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       sound.playClick();
-                      restoreAllDefaultSubjects();
-                      showNotification("Restored default core subjects!");
+                      const res = await restoreAllDefaultSubjects();
+                      reportCloudAction(res, "Restored default subjects across cloud & local cache!");
                     }}
-                    className="btn-vercel-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
+                    className="btn-educhain-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
                     <span>Restore Defaults ({deletedSubjectIds.length} hidden)</span>
@@ -1843,7 +2183,7 @@ export default function AdminPage() {
                           : "bg-neutral-100 dark:bg-white/5 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"
                       }`}
                     >
-                      <span>{cls.icon}</span>
+                      <SleekIcon name={cls.icon || cls.id} className="w-3.5 h-3.5" />
                       <span>{cls.name}</span>
                       <span className="text-[10px] opacity-70">({count})</span>
                     </button>
@@ -1903,11 +2243,10 @@ export default function AdminPage() {
                         </button>
                         
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Are you sure you want to delete subject "${sub.name}"? All ${stageCount} stages in this subject will be removed.`)) {
-                              deleteSubject(sub.id);
-                              sound.playClick();
-                              showNotification(`Subject "${sub.name}" deleted successfully.`);
+                              const res = await deleteSubject(sub.id);
+                              reportCloudAction(res, `Subject "${sub.name}" deleted and synced across devices.`);
                             }
                           }}
                           className="text-xs text-rose-500 hover:text-rose-700 font-mono flex items-center gap-1 font-semibold"
@@ -1933,7 +2272,7 @@ export default function AdminPage() {
           <div className="space-y-8 animate-in fade-in duration-200">
             
             {/* Create Class Form */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-1 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-sky-500" />
                 <span>Create New Class / Standard</span>
@@ -1960,7 +2299,7 @@ export default function AdminPage() {
                           setNewClassId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "_"));
                         }
                       }}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                     />
                   </div>
 
@@ -1973,7 +2312,7 @@ export default function AdminPage() {
                       placeholder="e.g. class_8"
                       value={newClassId}
                       onChange={(e) => setNewClassId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs font-mono focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs font-mono focus:outline-none"
                     />
                   </div>
 
@@ -1986,7 +2325,7 @@ export default function AdminPage() {
                       placeholder="e.g. 🎒 or 🎓 or ⚡"
                       value={newClassIcon}
                       onChange={(e) => setNewClassIcon(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none text-center"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none text-center"
                     />
                   </div>
 
@@ -1998,7 +2337,7 @@ export default function AdminPage() {
                       type="number"
                       value={newClassOrder}
                       onChange={(e) => setNewClassOrder(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                     />
                   </div>
 
@@ -2013,14 +2352,14 @@ export default function AdminPage() {
                     placeholder="e.g. Secondary School Certificate (SSC Part I) / Middle School"
                     value={newClassDesc}
                     onChange={(e) => setNewClassDesc(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#141414] text-xs focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   />
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2"
+                    className="btn-educhain-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Create Class Standard</span>
@@ -2030,7 +2369,7 @@ export default function AdminPage() {
             </div>
 
             {/* List of Existing Classes */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a]">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438]">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
@@ -2043,12 +2382,12 @@ export default function AdminPage() {
 
                 {deletedClassIds && deletedClassIds.length > 0 && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       sound.playClick();
-                      restoreAllDefaultClasses();
-                      showNotification("Restored default classes!");
+                      const res = await restoreAllDefaultClasses();
+                      reportCloudAction(res, "Restored default classes across cloud & local cache!");
                     }}
-                    className="btn-vercel-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
+                    className="btn-educhain-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
                     <span>Restore Defaults ({deletedClassIds.length} hidden)</span>
@@ -2104,11 +2443,10 @@ export default function AdminPage() {
                         </button>
                         
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Are you sure you want to delete class "${cls.name}"?`)) {
-                              deleteClass(cls.id);
-                              sound.playClick();
-                              showNotification(`Class "${cls.name}" deleted.`);
+                              const res = await deleteClass(cls.id);
+                              reportCloudAction(res, `Class "${cls.name}" deleted and synced across devices.`);
                             }
                           }}
                           className="text-xs text-rose-500 hover:text-rose-700 font-mono flex items-center gap-1 font-semibold"
@@ -2127,6 +2465,386 @@ export default function AdminPage() {
           </div>
         )}
 
+
+        {/* ======================================================== */}
+        {/* TAB 3: CHAPTER ORDERING & NUMERICAL RE-SEQUENCING */}
+        {/* ======================================================== */}
+        {activeTab === "chapters" && (() => {
+          // Aggregate all unique chapters for current orderSubject and orderGrade
+          const allCurriculumStages = getAllStages();
+          const targetStages = allCurriculumStages.filter(
+            (s) => s.subject === orderSubject && (s.grade || "grade_9") === orderGrade
+          );
+
+          const chapMap = new Map<string, { stages: Stage[]; originalNumber: number }>();
+          let naturalIndex = 1;
+
+          targetStages.forEach((s) => {
+            const chap = s.chapter || "Core Curriculum";
+            if (!chapMap.has(chap)) {
+              const key = `${orderGrade}::${orderSubject}::${chap}`;
+              const assigned = chapterOrders[key] ?? s.chapterNumber ?? naturalIndex;
+              chapMap.set(chap, {
+                stages: [],
+                originalNumber: assigned,
+              });
+              naturalIndex++;
+            }
+            chapMap.get(chap)!.stages.push(s);
+          });
+
+          // Build list
+          let chaptersList = Array.from(chapMap.entries()).map(([chapterName, info]) => {
+            const currentNum = chapterEdits[chapterName] ?? info.originalNumber;
+            return {
+              chapterName,
+              chapterNumber: currentNum,
+              stages: info.stages,
+              topics: Array.from(new Set(info.stages.map((st) => st.topic).filter(Boolean))),
+            };
+          });
+
+          // Filter by search if applied
+          if (chapterSearch.trim()) {
+            const q = chapterSearch.toLowerCase();
+            chaptersList = chaptersList.filter(
+              (c) => c.chapterName.toLowerCase().includes(q) || c.topics.some((t) => Boolean(t && t.toLowerCase().includes(q)))
+            );
+          }
+
+          // Sort by assigned chapterNumber
+          chaptersList.sort((a, b) => a.chapterNumber - b.chapterNumber);
+
+          const handleUpdateChapterNumber = (chapName: string, newNum: number) => {
+            const valid = Math.max(1, Math.min(99, newNum));
+            setChapterEdits((prev) => ({
+              ...prev,
+              [chapName]: valid,
+            }));
+          };
+
+          const handleCommitChapterOrders = async () => {
+            const updates = chaptersList.map((c) => ({
+              subject: orderSubject,
+              grade: orderGrade,
+              chapterName: c.chapterName,
+              chapterNumber: c.chapterNumber,
+            }));
+            const res = await batchSetChapterNumbers(updates);
+            if (reportCloudAction(
+              res,
+              `Saved chapter order to Supabase for ${allSubjects.find(s => s.id === orderSubject)?.name || "Subject"}!`,
+              `Chapter order saved locally only (${res.error || "Supabase offline"}).`
+            )) {
+              setChapterEdits({});
+            }
+          };
+
+          const handleAutoSequence = () => {
+            sound.playClick();
+            const newEdits: Record<string, number> = {};
+            chaptersList.forEach((c, idx) => {
+              newEdits[c.chapterName] = idx + 1;
+            });
+            setChapterEdits((prev) => ({ ...prev, ...newEdits }));
+            showNotification("Chapters sequenced 1, 2, 3... Click 'Save Changes' to commit.");
+          };
+
+          const handleResetToDefaults = async () => {
+            const res = await resetChapterNumbers(orderSubject, orderGrade);
+            if (reportCloudAction(
+              res,
+              "Reset chapter order to default sequence in Supabase.",
+              `Reset chapter order locally only (${res.error || "Supabase offline"}).`
+            )) {
+              setChapterEdits({});
+            }
+          };
+
+          const selectedSubMeta = allSubjects.find((s) => s.id === orderSubject);
+          const selectedClassMeta = allClasses.find((c) => c.id === orderGrade);
+
+          return (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              
+              {/* Header Banner */}
+              <div className="p-6 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-gradient-to-br from-white via-slate-50 to-blue-50/40 dark:from-[#182438] dark:via-[#1c2c44] dark:to-[#182438] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-cyan-400 border border-blue-500/20">
+                      Curriculum Architecture
+                    </span>
+                    <span className="text-xs text-neutral-400">•</span>
+                    <span className="text-xs text-neutral-600 dark:text-neutral-300 font-semibold">
+                      Chapter Numbering Autonomy
+                    </span>
+                  </div>
+                  <h3 className="font-heading text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1.5 tracking-tight">
+                    Chapter Sequence &amp; Numbering
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                    Set chapter numbers to your own choice (e.g. renumber Chapter 3 to Chapter 6). 
+                    EduChain automatically re-sequences chapters on the student map and updates badges like <span className="font-semibold text-blue-500">CHAPTER SIX</span>.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleAutoSequence}
+                    className="btn-educhain-secondary text-xs px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5"
+                    title="Sequence 1, 2, 3... in current order"
+                  >
+                    <ListOrdered className="w-3.5 h-3.5" />
+                    <span>Auto 1, 2, 3...</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetToDefaults}
+                    className="btn-educhain-secondary text-xs px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 text-neutral-500 hover:text-rose-500"
+                    title="Reset to initial un-ordered state"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCommitChapterOrders}
+                    className="btn-educhain-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-blue-500/25"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Save Chapter Order</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Subject & Class Selectors */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#182438]">
+                <div className="flex items-center gap-3 flex-wrap">
+                  
+                  {/* Class Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 font-mono font-semibold">Class:</span>
+                    <div className="relative min-w-[140px]">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                        <SleekIcon name={selectedClassMeta?.icon || orderGrade} className="w-3.5 h-3.5" />
+                      </div>
+                      <select
+                        value={orderGrade}
+                        onChange={(e) => {
+                          setOrderGrade(e.target.value);
+                          setChapterEdits({});
+                        }}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs font-semibold focus:outline-none"
+                      >
+                        {allClasses.map((cls) => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Subject Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 font-mono font-semibold">Subject:</span>
+                    <div className="relative min-w-[160px]">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                        <SleekIcon name={selectedSubMeta?.icon || orderSubject} className="w-3.5 h-3.5" />
+                      </div>
+                      <select
+                        value={orderSubject}
+                        onChange={(e) => {
+                          setOrderSubject(e.target.value);
+                          setChapterEdits({});
+                        }}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs font-semibold focus:outline-none"
+                      >
+                        {allSubjects.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Search in Chapters */}
+                <div className="relative max-w-xs w-full">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                  <input
+                    type="text"
+                    placeholder="Search chapter or topic..."
+                    value={chapterSearch}
+                    onChange={(e) => setChapterSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Chapters List */}
+              {chaptersList.length === 0 ? (
+                <div className="p-12 text-center rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-[#182438]">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center text-xl mb-3">
+                    📚
+                  </div>
+                  <h4 className="font-heading text-base font-bold text-slate-900 dark:text-white">
+                    No chapters found in {selectedSubMeta?.name || "this subject"} for {selectedClassMeta?.name || "this class"}
+                  </h4>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto mt-1 mb-4 leading-relaxed">
+                    Create your first chapter by uploading MCQs through CSV or building a stage using the Manual Form.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab("csv")}
+                    className="btn-educhain-primary text-xs px-4 py-2 rounded-xl font-bold"
+                  >
+                    Upload CSV to Create Chapters
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between px-1 text-xs font-mono text-neutral-500">
+                    <span>{chaptersList.length} Chapters Found in {selectedSubMeta?.name}</span>
+                    <span>Sorted by Assigned Chapter Number</span>
+                  </div>
+
+                  {chaptersList.map((chap, idx) => {
+                    const word = formatChapterWord(chap.chapterNumber);
+                    return (
+                      <div
+                        key={chap.chapterName}
+                        className="p-5 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-blue-500/40 dark:hover:border-cyan-400/40 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 card-lift"
+                      >
+                        {/* Chapter Left Info */}
+                        <div className="flex items-start gap-4">
+                          {/* Live Chapter Badge (Updates in Real-Time!) */}
+                          <div className="shrink-0 flex flex-col items-center">
+                            <span className="px-3 py-1 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs">
+                              Chapter {word}
+                            </span>
+                            <span className="text-[10px] font-mono text-neutral-400 mt-1">
+                              Position #{idx + 1}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-heading text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                              {chap.chapterName}
+                            </h4>
+
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-cyan-400 font-semibold border border-blue-500/15">
+                                {chap.stages.length} {chap.stages.length === 1 ? "Stage" : "Stages"}
+                              </span>
+                              
+                              {chap.topics.slice(0, 3).map((topic) => (
+                                <span
+                                  key={topic}
+                                  className="text-[10px] px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-white/5 text-neutral-600 dark:text-neutral-400 truncate max-w-[200px]"
+                                >
+                                  {topic}
+                                </span>
+                              ))}
+                              {chap.topics.length > 3 && (
+                                <span className="text-[10px] text-neutral-400 font-mono">
+                                  +{chap.topics.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Chapter Number Controller */}
+                        <div className="flex items-center gap-3 shrink-0 self-end md:self-center bg-slate-50 dark:bg-[#101827]/80 p-2.5 rounded-2xl border border-slate-200 dark:border-white/10">
+                          <div className="flex flex-col text-right pr-1">
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
+                              Chapter Number
+                            </span>
+                            <span className="text-[11px] text-neutral-400">
+                              (e.g. 1..99)
+                            </span>
+                          </div>
+
+                          {/* Stepper Buttons and Direct Number Input */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playClick();
+                                handleUpdateChapterNumber(chap.chapterName, chap.chapterNumber - 1);
+                              }}
+                              disabled={chap.chapterNumber <= 1}
+                              className="w-8 h-8 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#182438] text-slate-700 dark:text-white font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95 text-sm"
+                              title="Decrease Chapter Number"
+                            >
+                              -
+                            </button>
+
+                            <input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={chap.chapterNumber}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val)) {
+                                  handleUpdateChapterNumber(chap.chapterName, val);
+                                }
+                              }}
+                              className="w-14 h-8 text-center font-heading font-extrabold text-sm rounded-lg border border-blue-500/30 dark:border-cyan-400/30 bg-white dark:bg-[#182438] text-blue-600 dark:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playClick();
+                                handleUpdateChapterNumber(chap.chapterName, chap.chapterNumber + 1);
+                              }}
+                              disabled={chap.chapterNumber >= 99}
+                              className="w-8 h-8 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#182438] text-slate-700 dark:text-white font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95 text-sm"
+                              title="Increase Chapter Number"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Quick Jump Buttons (e.g. quick set 1, 2, 3, 6) */}
+                          <div className="hidden lg:flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-white/10">
+                            {[1, 2, 3, 4, 5, 6].map((quickNum) => (
+                              <button
+                                key={quickNum}
+                                type="button"
+                                onClick={() => {
+                                  sound.playClick();
+                                  handleUpdateChapterNumber(chap.chapterName, quickNum);
+                                }}
+                                className={`w-6 h-6 rounded-md text-[10px] font-mono font-bold transition-all ${
+                                  chap.chapterNumber === quickNum
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-200/60 dark:bg-white/5 text-slate-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"
+                                }`}
+                              >
+                                {quickNum}
+                              </button>
+                            ))}
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+          );
+        })()}
+
         {/* ======================================================== */}
         {/* TAB 3: MANAGE STAGES */}
         {/* ======================================================== */}
@@ -2138,21 +2856,34 @@ export default function AdminPage() {
                   Curriculum Stage Catalog
                 </h3>
                 <p className="text-xs text-neutral-500">
-                  {customStages.length} custom stages, {getAllStages().length} total stages in system. Click Edit on any stage to edit questions and metadata.
+                  {allStages.length} stages in curriculum. Edit or delete any stage across subjects and classes.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
+                {deletedStageIds && deletedStageIds.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      const count = deletedStageIds.length;
+                      const res = await restoreAllDefaultStages();
+                      reportCloudAction(res, `Restored ${count} default stages across cloud & local cache.`);
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-mono font-semibold flex items-center gap-1.5 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Restore Defaults ({deletedStageIds.length})</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab("csv")}
-                  className="btn-vercel-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+                  className="btn-educhain-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                   <span>Upload CSV</span>
                 </button>
                 <button
                   onClick={() => setActiveTab("upload")}
-                  className="btn-vercel-primary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+                  className="btn-educhain-primary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Manual Form</span>
@@ -2161,7 +2892,7 @@ export default function AdminPage() {
             </div>
 
             {/* Filter and Search Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438]">
               <div className="relative flex-1 max-w-sm">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <input
@@ -2184,7 +2915,7 @@ export default function AdminPage() {
                     <option value="all">All Classes</option>
                     {allClasses.map((cls) => (
                       <option key={cls.id} value={cls.id}>
-                        {cls.icon} {cls.name}
+                        {cls.name}
                       </option>
                     ))}
                   </select>
@@ -2209,7 +2940,7 @@ export default function AdminPage() {
             </div>
 
             {/* Stages Table */}
-            <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#0a0a0a]">
+            <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#182438]">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] text-neutral-500 font-mono">
                   <tr>
@@ -2241,9 +2972,36 @@ export default function AdminPage() {
                             <div className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1.5">
                               <span>{stage.subjectName || stage.subject}</span>
                             </div>
-                            <span className="text-[10px] font-mono text-neutral-400">
-                              {classObj?.name || "Class 9"} • Stage #{stage.subjectStageNumber || stage.id}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] font-mono text-neutral-400">
+                                {classObj?.name || "Class 9"} • Stage #{stageOrders[String(stage.id)] ?? stage.subjectStageNumber ?? stage.id}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const curr = Number(stageOrders[String(stage.id)] ?? stage.subjectStageNumber ?? 1) || 1;
+                                  if (curr <= 1) return;
+                                  const res = await setStageOrder(stage.id, curr - 1);
+                                  reportCloudAction(res, `Updated Stage # to ${curr - 1}.`);
+                                }}
+                                className="px-1 py-0 rounded border border-neutral-200 dark:border-white/10 text-[10px] font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                title="Move stage earlier"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const curr = Number(stageOrders[String(stage.id)] ?? stage.subjectStageNumber ?? 1) || 1;
+                                  const res = await setStageOrder(stage.id, curr + 1);
+                                  reportCloudAction(res, `Updated Stage # to ${curr + 1}.`);
+                                }}
+                                className="px-1 py-0 rounded border border-neutral-200 dark:border-white/10 text-[10px] font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                title="Move stage later"
+                              >
+                                +
+                              </button>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-neutral-600 dark:text-neutral-400">
                             {stage.chapter}
@@ -2278,25 +3036,20 @@ export default function AdminPage() {
                                 <span>Edit</span>
                               </button>
 
-                              {isCustom ? (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`Delete custom stage "${stage.title}"?`)) {
-                                      deleteStage(stage.id);
-                                      sound.playClick();
-                                      showNotification(`Stage "${stage.title}" deleted.`);
-                                    }
-                                  }}
-                                  className="text-xs font-mono text-rose-500 hover:text-rose-700 flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete</span>
-                                </button>
-                              ) : (
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 text-neutral-400">
-                                  Core
-                                </span>
-                              )}
+                              <button
+                                onClick={async () => {
+                                  const stageLabel = stage.title || stage.chapter || `Stage #${stage.id}`;
+                                  if (confirm(`Delete stage "${stageLabel}"?`)) {
+                                    const res = await deleteStage(stage.id);
+                                    reportCloudAction(res, `Stage "${stageLabel}" deleted across devices.`);
+                                  }
+                                }}
+                                className="text-xs font-mono text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"
+                                title="Delete Stage"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete</span>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2321,7 +3074,7 @@ export default function AdminPage() {
         {/* ======================================================== */}
         {activeTab === "sql" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0a0a0a] shadow-sm space-y-6">
+            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm space-y-6">
               
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-white/5">
                 <div>
@@ -2339,7 +3092,7 @@ export default function AdminPage() {
                     href="https://supabase.com/dashboard/project/elpzdzevtwinoaspyngi/sql/new"
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-vercel-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5"
+                    className="btn-educhain-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5"
                   >
                     <span>Open Supabase SQL Editor</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -2347,7 +3100,7 @@ export default function AdminPage() {
 
                   <button
                     onClick={copySql}
-                    className="btn-vercel-primary text-xs px-4 py-2 rounded-xl flex items-center gap-1.5"
+                    className="btn-educhain-primary text-xs px-4 py-2 rounded-xl flex items-center gap-1.5"
                   >
                     {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedSql ? "Copied SQL!" : "Copy SQL Script"}</span>
@@ -2369,7 +3122,7 @@ export default function AdminPage() {
                   <div className="font-mono text-xs font-bold text-neutral-400 mb-1">STEP 2</div>
                   <h4 className="text-xs font-bold text-neutral-900 dark:text-white mb-1">Execute in Supabase</h4>
                   <p className="text-[11px] text-neutral-500">
-                    Open your <strong>Supabase SQL Editor</strong>, paste the script into the query box, and click <strong>Run</strong> (Ctrl+Enter).
+                    Run the SQL migration in <strong>Supabase SQL Editor</strong>, add your admin user to <code>curriculum_admins</code>, and sign in via <strong>Cloud Sign In</strong>.
                   </p>
                 </div>
 
@@ -2408,7 +3161,7 @@ export default function AdminPage() {
                 <button
                   disabled={isPushingCloud}
                   onClick={handlePushToCloud}
-                  className="btn-vercel-primary text-xs px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
+                  className="btn-educhain-primary text-xs px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
                 >
                   <RefreshCw className={`w-4 h-4 ${isPushingCloud ? "animate-spin" : ""}`} />
                   <span>{isPushingCloud ? "Syncing with Supabase..." : `Push ${customStages.length} Local Stages to Supabase Cloud`}</span>
@@ -2429,8 +3182,12 @@ export default function AdminPage() {
           setIsEditStageOpen(false);
           setEditingStage(null);
         }}
-        onSaved={(title) => {
-          showNotification(`Stage "${title}" updated successfully!`);
+        onSaved={(title, warning) => {
+          if (warning) {
+            showNotification(`Stage "${title}" saved locally (${warning})`, "error");
+          } else {
+            showNotification(`Stage "${title}" updated and synced to Supabase!`);
+          }
         }}
       />
 
@@ -2446,6 +3203,85 @@ export default function AdminPage() {
           showNotification(`Subject "${name}" updated successfully!`);
         }}
       />
+
+      {/* Cloud Admin Supabase Sign-In Modal */}
+      {isCloudAuthOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#101827] shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-cyan-500" />
+                  <span>Supabase Cloud Admin Sign-In</span>
+                </h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  Required by Supabase Row-Level Security so only authorized admins can save shared curriculum changes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCloudAuthOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {cloudAuthError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-300">
+                {cloudAuthError}
+              </div>
+            )}
+
+            <form onSubmit={handleCloudAdminSignIn} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-mono font-bold uppercase text-neutral-600 dark:text-neutral-300 mb-1">
+                  Supabase Admin Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={cloudAdminEmail}
+                  onChange={(e) => setCloudAdminEmail(e.target.value)}
+                  placeholder="admin@yourdomain.com"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-black/40 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono font-bold uppercase text-neutral-600 dark:text-neutral-300 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={cloudAdminPassword}
+                  onChange={(e) => setCloudAdminPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-black/40 text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCloudAuthOpen(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={cloudAuthBusy}
+                  className="btn-educhain-primary px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+                >
+                  {cloudAuthBusy ? "Verifying..." : "Sign In Cloud Admin"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Class Modal */}
       <EditClassModal

@@ -14,6 +14,8 @@ import {
 import { useCurriculumStore } from "./useCurriculumStore";
 import { sound } from "@/lib/audio";
 
+let countdownIntervalRef: ReturnType<typeof setInterval> | null = null;
+
 interface CreateRoomParams {
   roomName: string;
   hostId: string;
@@ -415,6 +417,10 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
   },
 
   leaveRoom: () => {
+    if (countdownIntervalRef) {
+      clearInterval(countdownIntervalRef);
+      countdownIntervalRef = null;
+    }
     const { activeChannel } = get();
     if (activeChannel) {
       activeChannel.untrack();
@@ -594,14 +600,21 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
 
   // Internal helper: Run 3-2-1 Countdown
   _runCountdown: () => {
+    if (countdownIntervalRef) {
+      clearInterval(countdownIntervalRef);
+      countdownIntervalRef = null;
+    }
     let count = 3;
-    const interval = setInterval(() => {
+    countdownIntervalRef = setInterval(() => {
       count -= 1;
       if (count > 0) {
         sound.playClick();
         set({ countdownSeconds: count });
       } else {
-        clearInterval(interval);
+        if (countdownIntervalRef) {
+          clearInterval(countdownIntervalRef);
+          countdownIntervalRef = null;
+        }
         sound.playAchievement();
         set({
           gameStatus: "playing",

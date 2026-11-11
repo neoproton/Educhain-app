@@ -68,6 +68,7 @@ interface CurriculumStoreState {
   customSubjects: CustomSubject[];
   customStages: Stage[];
   deletedSubjectIds: string[];
+  deletedStageIds: string[];
   isLoading: boolean;
   cloudSyncStatus: "checking" | "connected" | "disconnected";
   cloudSyncMessage?: string;
@@ -86,12 +87,18 @@ interface CurriculumStoreState {
   addStage: (stage: Stage) => Promise<{ success: boolean; cloudSynced: boolean; error?: string }>;
   updateStage: (stageId: string | number, updatedData: Partial<Stage>) => Promise<{ success: boolean; cloudSynced: boolean; error?: string }>;
   deleteStage: (stageId: string | number) => Promise<{ success: boolean; error?: string }>;
+  restoreStage: (stageId: string | number) => Promise<{ success: boolean }>;
+  restoreAllDefaultStages: () => void;
   deleteSubject: (subjectId: string) => Promise<{ success: boolean; error?: string }>;
   restoreSubject: (subjectId: string) => Promise<{ success: boolean }>;
   restoreAllDefaultSubjects: () => void;
   syncWithSupabase: () => Promise<void>;
   getAllSubjects: (grade?: string) => CustomSubject[];
   getAllStages: () => Stage[];
+  chapterOrders: Record<string, number>;
+  setChapterNumber: (subject: string, grade: string, chapterName: string, chapterNumber: number) => void;
+  batchSetChapterNumbers: (updates: { subject: string; grade: string; chapterName: string; chapterNumber: number }[]) => void;
+  resetChapterNumbers: (subject?: string, grade?: string) => void;
 }
 
 export const useCurriculumStore = create<CurriculumStoreState>()(
@@ -102,6 +109,8 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
       customSubjects: [],
       customStages: [],
       deletedSubjectIds: [],
+      deletedStageIds: [],
+      chapterOrders: {},
       isLoading: false,
       cloudSyncStatus: "checking",
       cloudSyncMessage: undefined,
@@ -327,15 +336,24 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
       },
 
       getAllStages: () => {
-        const { customStages, deletedSubjectIds = [] } = get();
+        const { customStages, deletedSubjectIds = [], deletedStageIds = [], chapterOrders = {} } = get();
         const deletedSet = new Set(deletedSubjectIds);
+        const deletedStageSet = new Set((deletedStageIds || []).map(String));
         const customIds = new Set(customStages.map((s) => String(s.id)));
-        const filteredDefaults = STAGES_DATA.filter((s) => !customIds.has(String(s.id)) && (!s.subject || !deletedSet.has(s.subject)));
-        const activeCustom = customStages.filter((s) => !s.subject || !deletedSet.has(s.subject));
-        return [...filteredDefaults, ...activeCustom].map((stg) => ({
-          ...stg,
-          grade: stg.grade || "grade_9",
-        }));
+        const filteredDefaults = STAGES_DATA.filter((s) => !customIds.has(String(s.id)) && (!s.subject || !deletedSet.has(s.subject)) && !deletedStageSet.has(String(s.id)));
+        const activeCustom = customStages.filter((s) => (!s.subject || !deletedSet.has(s.subject)) && !deletedStageSet.has(String(s.id)));
+        return [...filteredDefaults, ...activeCustom].map((stg) => {
+          const stgGrade = stg.grade || "grade_9";
+          const sub = stg.subject || "science";
+          const chap = stg.chapter || "Core Curriculum";
+          const key = `${stgGrade}::${sub}::${chap}`;
+          const customNum = chapterOrders[key] ?? chapterOrders[`${sub}::${chap}`] ?? stg.chapterNumber;
+          return {
+            ...stg,
+            grade: stgGrade,
+            chapterNumber: customNum,
+          };
+        });
       },
 
       addSubject: async (subject: CustomSubject) => {
@@ -442,12 +460,21 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
         };
 
         // 1. Update local state immediately
-        set((state) => ({
-          customStages: [
-            ...state.customStages.filter((s) => String(s.id) !== String(stageId)),
-            formatted,
-          ],
-        }));
+        set((state) => {
+          const nextOrders = { ...(state.chapterOrders || {}) };
+          if (formatted.chapterNumber !== undefined && formatted.chapter) {
+            const key = `${formatted.grade || "grade_9"}::${formatted.subject || "science"}::${formatted.chapter}`;
+            nextOrders[key] = formatted.chapterNumber;
+          }
+          return {
+            chapterOrders: nextOrders,
+            deletedStageIds: (state.deletedStageIds || []).filter((id) => id !== String(stageId)),
+            customStages: [
+              ...state.customStages.filter((s) => String(s.id) !== String(stageId)),
+              formatted,
+            ],
+          };
+        });
 
         // 2. Try persisting to Supabase if table exists
         let cloudSynced = false;
@@ -496,12 +523,24 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
           id: stageId,
         };
 
-        set((state) => ({
-          customStages: [
-            ...state.customStages.filter((s) => String(s.id) !== String(stageId)),
-            merged,
-          ],
-        }));
+        set((state) => {
+          const nextOrders = { ...(state.chapterOrders || {}) };
+          if ("chapterNumber" in updatedData && merged.chapter) {
+            const key = `${merged.grade || "grade_9"}::${merged.subject || "science"}::${merged.chapter}`;
+            if (typeof updatedData.chapterNumber === "number" && !Number.isNaN(updatedData.chapterNumber)) {
+              nextOrders[key] = updatedData.chapterNumber;
+            } else {
+              delete nextOrders[key];
+            }
+          }
+          return {
+            chapterOrders: nextOrders,
+            customStages: [
+              ...state.customStages.filter((s) => String(s.id) !== String(stageId)),
+              merged,
+            ],
+          };
+        });
 
         let cloudSynced = false;
         let cloudError: string | undefined;
@@ -536,17 +575,31 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
       },
 
       deleteStage: async (stageId: string | number) => {
+        const idStr = String(stageId);
         set((state) => ({
-          customStages: state.customStages.filter((s) => String(s.id) !== String(stageId)),
+          deletedStageIds: Array.from(new Set([...(state.deletedStageIds || []), idStr])),
+          customStages: state.customStages.filter((s) => String(s.id) !== idStr),
         }));
 
         try {
-          await supabase.from("custom_stages").delete().eq("id", String(stageId));
+          await supabase.from("custom_stages").delete().eq("id", idStr);
         } catch (e) {
           console.warn("Supabase stage delete error:", e);
         }
 
         return { success: true };
+      },
+
+      restoreStage: async (stageId: string | number) => {
+        const idStr = String(stageId);
+        set((state) => ({
+          deletedStageIds: (state.deletedStageIds || []).filter((id) => id !== idStr),
+        }));
+        return { success: true };
+      },
+
+      restoreAllDefaultStages: () => {
+        set({ deletedStageIds: [] });
       },
 
       deleteSubject: async (subjectId: string) => {
@@ -577,6 +630,62 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
         set({ deletedSubjectIds: [] });
       },
 
+      setChapterNumber: (subject: string, grade: string, chapterName: string, chapterNumber: number) => {
+        const key = `${grade || "grade_9"}::${subject}::${chapterName}`;
+        set((state) => ({
+          chapterOrders: {
+            ...state.chapterOrders,
+            [key]: chapterNumber,
+          },
+          customStages: state.customStages.map((stg) => {
+            const stgGrade = stg.grade || "grade_9";
+            if (stg.subject === subject && stgGrade === grade && stg.chapter === chapterName) {
+              return { ...stg, chapterNumber };
+            }
+            return stg;
+          }),
+        }));
+      },
+
+      batchSetChapterNumbers: (updates: { subject: string; grade: string; chapterName: string; chapterNumber: number }[]) => {
+        set((state) => {
+          const newOrders = { ...(state.chapterOrders || {}) };
+          updates.forEach((u) => {
+            const key = `${u.grade || "grade_9"}::${u.subject}::${u.chapterName}`;
+            newOrders[key] = u.chapterNumber;
+          });
+          return {
+            chapterOrders: newOrders,
+            customStages: state.customStages.map((stg) => {
+              const stgGrade = stg.grade || "grade_9";
+              const match = updates.find(
+                (u) => u.subject === stg.subject && (u.grade || "grade_9") === stgGrade && u.chapterName === stg.chapter
+              );
+              if (match) {
+                return { ...stg, chapterNumber: match.chapterNumber };
+              }
+              return stg;
+            }),
+          };
+        });
+      },
+
+      resetChapterNumbers: (subject?: string, grade?: string) => {
+        set((state) => {
+          if (!subject && !grade) {
+            return { chapterOrders: {} };
+          }
+          const filteredOrders = { ...(state.chapterOrders || {}) };
+          const prefix = grade ? `${grade}::${subject || ""}` : `grade_9::${subject || ""}`;
+          Object.keys(filteredOrders).forEach((k) => {
+            if (k.startsWith(prefix) || (subject && k.includes(`::${subject}::`))) {
+              delete filteredOrders[k];
+            }
+          });
+          return { chapterOrders: filteredOrders };
+        });
+      },
+
       syncWithSupabase: async () => {
         set({ isLoading: true });
         try {
@@ -588,15 +697,21 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
               .order("display_order", { ascending: true });
 
             if (!classErr && cloudClasses) {
-              const mappedClasses: SchoolClass[] = cloudClasses.map((c: any) => ({
-                id: c.id,
-                name: c.name,
-                description: c.description || "",
-                icon: c.icon || "🎓",
-                displayOrder: c.display_order ?? 1,
-                created_at: c.created_at,
-              }));
-              set({ customClasses: mappedClasses });
+              const { deletedClassIds = [], customClasses: localClasses = [] } = get();
+              const deletedSet = new Set(deletedClassIds);
+              const mappedClasses: SchoolClass[] = cloudClasses
+                .filter((c: any) => !deletedSet.has(c.id))
+                .map((c: any) => ({
+                  id: c.id,
+                  name: c.name,
+                  description: c.description || "",
+                  icon: c.icon || "🎓",
+                  displayOrder: c.display_order ?? 1,
+                  created_at: c.created_at,
+                }));
+              const cloudIds = new Set(mappedClasses.map((c) => c.id));
+              const localOnly = localClasses.filter((c) => !cloudIds.has(c.id) && !deletedSet.has(c.id));
+              set({ customClasses: [...mappedClasses, ...localOnly] });
             }
           } catch (e) {
             console.warn("custom_classes sync check:", e);
@@ -608,17 +723,23 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
             .select("*");
 
           if (!subErr && cloudSubjects) {
-            const mappedSubs: CustomSubject[] = cloudSubjects.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              icon: s.icon || "📚",
-              description: s.description || "",
-              color: s.color || "#38bdf8",
-              badgeBg: s.badge_bg,
-              borderColor: s.border_color,
-              grade: s.grade || "grade_9",
-            }));
-            set({ customSubjects: mappedSubs });
+            const { deletedSubjectIds = [], customSubjects: localSubjects = [] } = get();
+            const deletedSubSet = new Set(deletedSubjectIds);
+            const mappedSubs: CustomSubject[] = cloudSubjects
+              .filter((s: any) => !deletedSubSet.has(s.id))
+              .map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                icon: s.icon || "📚",
+                description: s.description || "",
+                color: s.color || "#38bdf8",
+                badgeBg: s.badge_bg,
+                borderColor: s.border_color,
+                grade: s.grade || "grade_9",
+              }));
+            const cloudSubIds = new Set(mappedSubs.map((s) => s.id));
+            const localOnlySubs = localSubjects.filter((s) => !cloudSubIds.has(s.id) && !deletedSubSet.has(s.id));
+            set({ customSubjects: [...mappedSubs, ...localOnlySubs] });
           }
 
           // Fetch custom stages
@@ -627,22 +748,30 @@ export const useCurriculumStore = create<CurriculumStoreState>()(
             .select("*");
 
           if (!stageErr && cloudStages) {
-            const mappedStages: Stage[] = cloudStages.map((s: any) => ({
-              id: s.id,
-              subject: s.subject_id as SubjectType,
-              subjectName: s.subject_name,
-              subjectStageNumber: s.subject_stage_number,
-              grade: s.grade || "grade_9",
-              chapter: s.chapter,
-              topic: s.topic,
-              title: s.title,
-              description: s.description,
-              learningObjective: s.learning_objective,
-              difficulty: s.difficulty,
-              xpReward: s.xp_reward,
-              questions: Array.isArray(s.questions) ? s.questions : [],
-            }));
-            set({ customStages: mappedStages });
+            const { deletedStageIds = [], customStages: localStages = [] } = get();
+            const deletedStgSet = new Set((deletedStageIds || []).map(String));
+            const mappedStages: Stage[] = cloudStages
+              .filter((s: any) => !deletedStgSet.has(String(s.id)))
+              .map((s: any) => ({
+                id: s.id,
+                subject: s.subject_id as SubjectType,
+                subjectName: s.subject_name,
+                subjectStageNumber: s.subject_stage_number,
+                grade: s.grade || "grade_9",
+                chapter: s.chapter,
+                topic: s.topic,
+                title: s.title,
+                description: s.description,
+                learningObjective: s.learning_objective,
+                difficulty: s.difficulty,
+                xpReward: s.xp_reward,
+                questions: Array.isArray(s.questions) ? s.questions : [],
+              }));
+            const cloudStgIds = new Set(mappedStages.map((s) => String(s.id)));
+            const localOnlyStages = localStages.filter(
+              (s) => !cloudStgIds.has(String(s.id)) && !deletedStgSet.has(String(s.id))
+            );
+            set({ customStages: [...mappedStages, ...localOnlyStages] });
           }
         } catch (e) {
           console.warn("Cloud sync error:", e);

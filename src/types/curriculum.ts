@@ -55,6 +55,7 @@ export interface Stage {
   level?: number;
   levelName?: string;
   chapter?: string;
+  chapterNumber?: number;
   topic?: string;
   learningObjective?: string;
   title: string;

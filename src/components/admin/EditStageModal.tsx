@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { SleekIcon } from "@/components/SleekIcon";
 import { 
   X, 
   Save, 
@@ -15,6 +16,7 @@ import {
 import { Stage, Question } from "@/types/curriculum";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 interface EditStageModalProps {
   stage: Stage | null;
@@ -29,6 +31,7 @@ export const EditStageModal: React.FC<EditStageModalProps> = ({
   onClose,
   onSaved,
 }) => {
+  useBodyScrollLock(isOpen && Boolean(stage));
   const { updateStage, getAllSubjects, getAllClasses } = useCurriculumStore();
   const allSubjects = getAllSubjects();
   const allClasses = getAllClasses();
@@ -37,6 +40,7 @@ export const EditStageModal: React.FC<EditStageModalProps> = ({
 
   return (
     <EditStageForm
+      key={stage.id}
       stage={stage}
       onClose={onClose}
       onSaved={onSaved}
@@ -64,6 +68,7 @@ function EditStageForm({
 }) {
   const [title, setTitle] = useState(stage.title || "");
   const [chapter, setChapter] = useState(stage.chapter || "");
+  const [chapterNumber, setChapterNumberInput] = useState<number | "">(stage.chapterNumber || "");
   const [topic, setTopic] = useState(stage.topic || "");
   const [subject, setSubject] = useState<string>(stage.subject || "computer_science");
   const [grade, setGrade] = useState<string>(stage.grade || "grade_9");
@@ -130,10 +135,13 @@ function EditStageForm({
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!title.trim() || !chapter.trim() || !topic.trim()) {
-      setErrorMessage("Title, Chapter, and Topic are strictly required.");
+    if (!chapter.trim()) {
+      setErrorMessage("Chapter name is required.");
       return;
     }
+
+    const finalTopic = topic.trim() || chapter.trim() || "General Practice";
+    const finalTitle = title.trim() || (topic.trim() ? `${topic.trim()} Quest` : `${chapter.trim()} Challenge`);
 
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
@@ -156,20 +164,26 @@ function EditStageForm({
     const selectedSub = allSubjects.find((s) => s.id === subject) || allSubjects[0];
 
     const updatedData: Partial<Stage> = {
-      title: title.trim(),
+      title: finalTitle,
       chapter: chapter.trim(),
-      topic: topic.trim(),
+      chapterNumber: chapterNumber !== "" ? Number(chapterNumber) : undefined,
+      topic: finalTopic,
       subject: subject as any,
-      subjectName: selectedSub.name,
+      subjectName: selectedSub?.name || subject,
       grade: grade as any,
       difficulty,
       xpReward: Number(xpReward) || 100,
       learningObjective: learningObjective.trim(),
-      description: learningObjective.trim() || `Quiz covering ${topic.trim()}`,
+      description: learningObjective.trim() || `Quiz covering ${finalTopic}`,
       questions,
     };
 
     const res = await updateStage(stage.id, updatedData);
+
+    if (chapterNumber !== "") {
+      useCurriculumStore.getState().setChapterNumber(subject, grade, chapter.trim(), Number(chapterNumber));
+    }
+
     setIsSaving(false);
 
     if (res.success) {
@@ -182,8 +196,8 @@ function EditStageForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if (e.target === e.currentTarget) { sound.playClick(); onClose(); } }}>
+      <div className="relative w-full max-w-4xl max-h-[92dvh] sm:max-h-[90dvh] flex flex-col min-h-0 rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02] shrink-0">
@@ -222,7 +236,7 @@ function EditStageForm({
         )}
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
           
           {/* Metadata Grid */}
           <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-white/[0.02] space-y-4">
@@ -230,42 +244,67 @@ function EditStageForm({
               Stage Classification
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div className="sm:col-span-3">
                 <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
                   Class / Grade
                 </label>
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs font-medium"
-                >
-                  {allClasses.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.icon} {cls.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                    <SleekIcon name={allClasses.find((c) => c.id === grade)?.icon || grade} className="w-4 h-4" />
+                  </div>
+                  <select
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs font-medium"
+                  >
+                    {allClasses.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
+              <div className="sm:col-span-3">
                 <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
                   Subject
                 </label>
-                <select
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs font-medium"
-                >
-                  {allSubjects.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.icon} {sub.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                    <SleekIcon name={allSubjects.find((s) => s.id === subject)?.icon || subject} className="w-4 h-4" />
+                  </div>
+                  <select
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs font-medium"
+                  >
+                    {allSubjects.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
+                  Chapter #
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  placeholder="Auto (1..)"
+                  value={chapterNumber}
+                  onChange={(e) => setChapterNumberInput(e.target.value ? parseInt(e.target.value, 10) : "")}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs font-mono text-center"
+                />
+              </div>
+
+              <div className="sm:col-span-4">
                 <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
                   Chapter Name
                 </label>
@@ -278,13 +317,13 @@ function EditStageForm({
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-12">
                 <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
-                  Topic Name
+                  Topic Name <span className="text-neutral-400 font-normal lowercase">(optional)</span>
                 </label>
                 <input
                   type="text"
-                  required
+                  placeholder="e.g. Specific Topic (optional - defaults to Chapter if omitted)"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs"
@@ -295,11 +334,11 @@ function EditStageForm({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <div>
                 <label className="block text-xs font-mono font-semibold text-neutral-700 dark:text-neutral-300 uppercase mb-1">
-                  Stage Title
+                  Stage Title <span className="text-neutral-400 font-normal lowercase">(optional)</span>
                 </label>
                 <input
                   type="text"
-                  required
+                  placeholder="e.g. Stage Title (optional)"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs"
@@ -347,7 +386,7 @@ function EditStageForm({
               <button
                 type="button"
                 onClick={handleAddQuestion}
-                className="btn-vercel-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
+                className="btn-educhain-secondary text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Question</span>
@@ -450,7 +489,7 @@ function EditStageForm({
           </div>
 
           {/* Sticky Submit Footer */}
-          <div className="pt-4 border-t border-neutral-100 dark:border-white/5 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-[#0c0c0c] py-2">
+          <div className="pt-4 border-t border-neutral-100 dark:border-white/5 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-[#182438] py-2">
             <button
               type="button"
               onClick={onClose}
@@ -462,7 +501,7 @@ function EditStageForm({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-vercel-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md disabled:opacity-50"
+              className="btn-educhain-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               <span>{isSaving ? "Saving Changes..." : "Save Stage Changes"}</span>

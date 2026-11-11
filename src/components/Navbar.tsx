@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useEduStore } from "@/store/useEduStore";
 import { sound } from "@/lib/audio";
 import { ScholarAvatar } from "@/components/SleekIcon";
@@ -74,31 +75,45 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isDark = settings.theme === "dark";
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-black/[0.06] dark:border-white/[0.08] bg-white/75 dark:bg-black/75 backdrop-blur-xl transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-[#223149]/70 bg-white/85 dark:bg-[#101827]/85 backdrop-blur-xl transition-colors duration-300 shadow-xs">
+      {/* Top subtle gradient accent line */}
+      <div className="h-[2px] w-full bg-gradient-to-r from-[#2563EB] via-[#22D3EE] to-[#A78BFA] opacity-80" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         
         {/* Brand / Logo */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-5 shrink-0">
           <button 
             onClick={() => { setActiveTab("map"); sound.playClick(); }}
             className="flex items-center gap-2.5 text-left focus:outline-none group"
           >
-            <div className="w-8 h-8 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-all">
-              <span className="text-sm">⚡</span>
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-[#2563EB]/40 dark:border-[#22D3EE]/40 bg-[#101827] shadow-[0_0_16px_rgba(37,99,235,0.35)] group-hover:scale-105 group-hover:shadow-[0_0_22px_rgba(34,211,238,0.6)] transition-all shrink-0">
+              <Image
+                src="/logo.png"
+                alt="EduChain Logo"
+                fill
+                sizes="36px"
+                className="object-cover"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-bold tracking-tight text-neutral-950 dark:text-white text-base">EduChain</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full border border-black/[0.08] dark:border-white/[0.12] text-neutral-600 dark:text-neutral-400 bg-neutral-100/80 dark:bg-white/[0.04] font-semibold">
+                <span className="font-heading font-extrabold tracking-tight text-slate-900 dark:text-[#F8FAFC] text-base group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors">
+                  EduChain
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border border-[#2563EB]/20 dark:border-[#22D3EE]/30 text-[#2563EB] dark:text-[#22D3EE] bg-[#2563EB]/5 dark:bg-[#22D3EE]/10 font-bold">
                   v2.0
                 </span>
               </div>
-              <span className="text-[11px] text-neutral-500 dark:text-neutral-400 -mt-0.5 hidden sm:inline font-normal">Learn • Connect • Unlock</span>
+              <span className="text-[11px] text-slate-500 dark:text-[#94A3B8] -mt-0.5 hidden sm:inline font-normal">
+                Learn • Connect • Unlock
+              </span>
             </div>
           </button>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 border-l border-neutral-200/80 dark:border-white/[0.08] pl-5 ml-1">
+          {/* Navigation Tabs (Desktop) */}
+          <nav className="hidden md:flex items-center gap-1.5 border-l border-slate-200 dark:border-[#223149] pl-5 ml-1">
             {[
               { id: "map", label: "My Quests", icon: BookOpen },
               { id: "leaderboard", label: "Leaderboard", icon: Trophy },
@@ -118,16 +133,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setActiveTab(item.id);
                     sound.playClick();
                   }}
-                  className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs rounded-xl transition-all ${
+                  className={`relative flex items-center gap-2 px-3.5 py-1.5 text-xs rounded-xl transition-all duration-200 ${
                     isActive
-                      ? "text-neutral-950 dark:text-white bg-neutral-100 dark:bg-white/[0.09] shadow-xs font-semibold"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-white/[0.03] font-medium"
+                      ? "text-slate-900 dark:text-[#F8FAFC] bg-gradient-to-r from-blue-500/15 via-cyan-500/10 to-transparent dark:from-[#2563EB]/25 dark:via-[#22D3EE]/15 dark:to-transparent border border-[#2563EB]/30 dark:border-[#22D3EE]/30 shadow-xs font-semibold"
+                      : "text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#182438] font-medium"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#2563EB] dark:text-[#22D3EE]" : ""}`} />
                   <span>{item.label}</span>
                   {item.badge !== null && item.badge !== undefined && (
-                    <span className="ml-0.5 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <span className="ml-0.5 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                       {item.badge}
                     </span>
                   )}
@@ -138,11 +153,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Link
               href="/battle"
               onClick={() => sound.playClick()}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-white/[0.03]"
+              className="relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#182438]"
             >
               <Swords className="w-3.5 h-3.5 text-rose-500" />
               <span>Multiplayer</span>
-              <span className="ml-0.5 text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+              <span className="ml-0.5 text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.3)]">
                 LIVE
               </span>
             </Link>
@@ -150,23 +165,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Status / Scholar Stats & Profile */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           
           {/* Streak Counter */}
           <div 
             title={`Current Streak: ${currentStreak} days`}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-neutral-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0c0c0e] text-xs font-mono text-orange-600 dark:text-orange-400 font-bold shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-orange-500/25 bg-orange-500/10 text-xs font-mono text-orange-600 dark:text-orange-400 font-bold shadow-xs transition-transform hover:scale-105"
           >
-            <Flame className="w-3.5 h-3.5 fill-orange-500/20 text-orange-500 dark:text-orange-400" />
+            <Flame className="w-3.5 h-3.5 fill-orange-500/30 text-orange-500 dark:text-orange-400 animate-pulse" />
             <span>{currentStreak}d</span>
           </div>
 
           {/* XP Badge */}
           <div 
             title={`Total Experience Points: ${xp} XP`}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-neutral-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0c0c0e] text-xs font-mono text-amber-600 dark:text-amber-400 font-bold shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-amber-500/25 bg-amber-500/10 text-xs font-mono text-amber-600 dark:text-amber-400 font-bold shadow-xs transition-transform hover:scale-105"
           >
-            <Zap className="w-3.5 h-3.5 fill-amber-500/20 text-amber-500 dark:text-amber-400" />
+            <Zap className="w-3.5 h-3.5 fill-amber-500/30 text-amber-500 dark:text-amber-400" />
             <span>{xp} XP</span>
           </div>
 
@@ -175,12 +190,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={handleToggleTheme}
             aria-label={isDark ? "Switch to White / Light Mode" : "Switch to Dark Mode"}
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="p-1.5 rounded-xl border border-neutral-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0c0c0e] text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors shadow-xs"
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all shadow-xs"
           >
             {isDark ? (
               <Sun className="w-4 h-4 text-amber-400" />
             ) : (
-              <Moon className="w-4 h-4 text-neutral-600" />
+              <Moon className="w-4 h-4 text-slate-600" />
             )}
           </button>
 
@@ -189,16 +204,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={toggleSound}
             aria-label={settings.soundEnabled ? "Mute Sound FX" : "Unmute Sound FX"}
             title={settings.soundEnabled ? "Mute Web Audio API" : "Unmute Web Audio API"}
-            className="p-1.5 rounded-xl border border-neutral-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0c0c0e] text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors shadow-xs"
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all shadow-xs"
           >
-            {settings.soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-neutral-400 dark:text-neutral-600" />}
+            {settings.soundEnabled ? (
+              <Volume2 className="w-4 h-4 text-[#2563EB] dark:text-[#22D3EE]" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-slate-400 dark:text-slate-600" />
+            )}
           </button>
 
           {/* Login button if guest */}
           {!hasSession && isGuest && onOpenAuth && (
             <button
               onClick={() => { sound.playClick(); onOpenAuth("signin"); }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 border border-neutral-200/80 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/10 transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-[#F8FAFC] border border-slate-200 dark:border-[#223149] hover:bg-slate-100 dark:hover:bg-[#182438] hover:border-[#2563EB]/40 transition-all shadow-xs"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Login</span>
@@ -212,13 +231,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               sound.playClick();
             }}
             title="Account Details & Settings"
-            className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-neutral-200/80 dark:border-white/[0.12] bg-white dark:bg-[#0c0c0e] hover:border-neutral-300 dark:hover:border-white/20 transition-all text-xs font-medium shadow-xs"
+            className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-[#2563EB]/50 dark:hover:border-[#22D3EE]/50 hover:shadow-[0_0_16px_rgba(37,99,235,0.25)] transition-all text-xs font-medium shadow-xs"
           >
             <ScholarAvatar name={name} avatar={avatar} size="sm" />
-            <span className="hidden sm:inline font-mono text-neutral-800 dark:text-neutral-200 font-semibold text-xs">
+            <span className="hidden sm:inline font-mono text-slate-800 dark:text-[#F8FAFC] font-semibold text-xs">
               {name || (isGuest ? "Guest Explorer" : "Scholar")}
             </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-[#2563EB]/20 dark:to-[#22D3EE]/20 text-[#2563EB] dark:text-[#22D3EE] border border-[#2563EB]/20 dark:border-[#22D3EE]/30 font-mono font-semibold">
               {isGuest && xp === 0 ? "Guest" : currentRank.name}
             </span>
           </button>
@@ -228,7 +247,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-neutral-200 dark:border-white/[0.06] bg-white/95 dark:bg-black/90 py-2 px-2">
+      <div className="md:hidden flex items-center justify-around border-t border-slate-200/80 dark:border-[#223149]/70 bg-white/95 dark:bg-[#101827]/95 backdrop-blur-md py-2 px-2">
         {[
           { id: "map", label: "Quests", icon: BookOpen },
           { id: "leaderboard", label: "Ranks", icon: Trophy },
@@ -248,8 +267,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setActiveTab(item.id);
                 sound.playClick();
               }}
-              className={`flex flex-col items-center gap-1 px-3 py-1 text-[11px] rounded transition-all relative ${
-                isActive ? "text-neutral-900 dark:text-white font-semibold" : "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300"
+              className={`flex flex-col items-center gap-1 px-3 py-1 text-[11px] rounded-xl transition-all relative ${
+                isActive 
+                  ? "text-[#2563EB] dark:text-[#22D3EE] font-bold" 
+                  : "text-slate-500 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <div className="relative">
@@ -266,7 +287,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <Link
           href="/battle"
           onClick={() => sound.playClick()}
-          className="flex flex-col items-center gap-1 px-3 py-1 text-[11px] rounded transition-all relative text-rose-600 dark:text-rose-400 font-bold"
+          className="flex flex-col items-center gap-1 px-3 py-1 text-[11px] rounded-xl transition-all relative text-rose-600 dark:text-rose-400 font-bold"
         >
           <div className="relative">
             <Swords className="w-4 h-4" />

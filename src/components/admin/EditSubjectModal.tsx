@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import { SleekIcon } from "@/components/SleekIcon";
 import { X, Save, Layers, Sparkles } from "lucide-react";
 import { CustomSubject, useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 const COLOR_PRESETS = [
   { label: "Sky Blue", value: "#38bdf8" },
@@ -29,6 +31,7 @@ export const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   onClose,
   onSaved,
 }) => {
+  useBodyScrollLock(isOpen && Boolean(subject));
   const { updateSubject } = useCurriculumStore();
 
   if (!isOpen || !subject) return null;
@@ -83,11 +86,11 @@ function EditSubjectForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if (e.target === e.currentTarget) { sound.playClick(); onClose(); } }}>
+      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl flex flex-col min-h-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
+        <div className="shrink-0 flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
               <Layers className="w-5 h-5" />
@@ -114,22 +117,27 @@ function EditSubjectForm({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="p-6 space-y-4">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
           <div>
             <label className="block text-xs font-mono font-semibold uppercase mb-1">
               Target Class / Grade
             </label>
-            <select
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs font-semibold"
-            >
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.icon} {cls.name} {cls.description ? `— ${cls.description}` : ""}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500 dark:text-cyan-400">
+                <SleekIcon name={classes.find((c) => c.id === grade)?.icon || grade} className="w-4 h-4" />
+              </div>
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs font-semibold"
+              >
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name} {cls.description ? `— ${cls.description}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -204,7 +212,7 @@ function EditSubjectForm({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
+              className="btn-educhain-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? "Saving..." : "Update Subject"}</span>

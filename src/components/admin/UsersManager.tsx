@@ -20,7 +20,9 @@ import {
   GraduationCap
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { ScholarAvatar } from "@/components/SleekIcon";
 import { sound } from "@/lib/audio";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 export interface StudentProfile {
   id: string;
@@ -271,7 +273,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       
       {/* Overview Analytics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-sm">
+        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Users className="w-4 h-4 text-cyan-500" />
             <span>Total Scholars</span>
@@ -281,7 +283,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-sm">
+        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Zap className="w-4 h-4 text-amber-500" />
             <span>Cumulative XP</span>
@@ -291,7 +293,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-sm">
+        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Trophy className="w-4 h-4 text-emerald-500" />
             <span>Avg Accuracy</span>
@@ -301,7 +303,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-sm">
+        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Flame className="w-4 h-4 text-rose-500" />
             <span>Top Streak</span>
@@ -313,7 +315,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       </div>
 
       {/* Control bar: Search, Filter, Sort, Export */}
-      <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* Search */}
         <div className="relative flex-1 max-w-md">
@@ -368,7 +370,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           {/* Export CSV */}
           <button
             onClick={handleExportCSV}
-            className="btn-vercel-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-sm"
+            className="btn-educhain-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
@@ -378,7 +380,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       </div>
 
       {/* Students Data Table */}
-      <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#0c0c0c] shadow-sm">
+      <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#182438] shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] text-neutral-500 font-mono">
@@ -411,7 +413,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
                   <tr key={s.id} className="hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-2xl">{s.player_avatar || "🧠"}</span>
+                        <ScholarAvatar name={s.player_name} avatar={s.player_avatar} size="md" />
                         <div>
                           <div className="font-bold text-neutral-900 dark:text-white">
                             {s.player_name}
@@ -496,10 +498,10 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
 
       {/* Edit Student Modal */}
       {editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if (e.target === e.currentTarget) { sound.playClick(); setEditingStudent(null); } }}>
+          <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl flex flex-col min-h-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             
-            <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
+            <div className="shrink-0 flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
                   <GraduationCap className="w-5 h-5" />
@@ -522,7 +524,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveStudentEdit} className="p-6 space-y-4">
+            <form onSubmit={handleSaveStudentEdit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
               <div>
                 <label className="block text-xs font-mono font-semibold uppercase mb-1">
                   Player Name
@@ -604,7 +606,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                  className="btn-educhain-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isUpdating ? "Saving..." : "Save Scholar Profile"}</span>

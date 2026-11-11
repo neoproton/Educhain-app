@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { Stage } from "@/types/curriculum";
-import { SUBJECT_METADATA, getSubjectMeta } from "@/data/constants";
+import { getSubjectMeta } from "@/data/constants";
+import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
 import { Lock, CheckCircle2, Play, ChevronDown, ChevronUp, Info } from "lucide-react";
 
@@ -22,7 +23,12 @@ export const StageCard: React.FC<StageCardProps> = ({
   onSelect,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const { getAllSubjects } = useCurriculumStore();
+  const allSubjects = getAllSubjects();
+  const customSub = allSubjects.find((s) => s.id === stage.subject);
   const meta = getSubjectMeta(stage.subject);
+  const subColor = customSub?.color || meta?.color || "#22D3EE";
+  const subName = customSub?.name || stage.subjectName || meta?.name || "Track";
 
   const handleClick = (e: React.MouseEvent) => {
     // If clicking the info toggle, don't trigger quiz
@@ -39,10 +45,10 @@ export const StageCard: React.FC<StageCardProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`group relative rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between ${
+      className={`group relative rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between card-lift ${
         isUnlocked
-          ? "cursor-pointer bg-white dark:bg-[#0c0c0e] hover:bg-neutral-50/60 dark:hover:bg-[#121216] border-black/[0.07] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20 hover:shadow-lg hover:shadow-black/[0.03] dark:hover:shadow-white/[0.02]"
-          : "opacity-45 bg-neutral-100/50 dark:bg-[#08080a] border-black/[0.04] dark:border-white/[0.04] cursor-not-allowed select-none"
+          ? "cursor-pointer bg-white dark:bg-[#182438] hover:bg-slate-50/80 dark:hover:bg-[#1f304b] border-slate-200 dark:border-[#263B5B] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/50 shadow-sm dark:shadow-[0_4px_20px_rgba(16,24,39,0.35)] hover:shadow-xl dark:hover:shadow-[0_12px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(34,211,238,0.12)]"
+          : "opacity-45 bg-slate-100/60 dark:bg-[#131c2b] border-slate-200/60 dark:border-[#1d2a3f] cursor-not-allowed select-none"
       }`}
     >
       <div>
@@ -50,54 +56,56 @@ export const StageCard: React.FC<StageCardProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span
-              className="w-2 h-2 rounded-full shrink-0 ring-4 ring-neutral-100 dark:ring-white/5"
-              style={{ backgroundColor: meta?.color || "#38bdf8" }}
+              className="w-2.5 h-2.5 rounded-full shrink-0 ring-4 ring-slate-100 dark:ring-[#223149] shadow-xs"
+              style={{ backgroundColor: subColor }}
             />
-            <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              {stage.subjectName || "Track"} • Stage {stage.subjectStageNumber || stage.id}
+            <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
+              {subName} • Stage {stage.subjectStageNumber || (typeof stage.id === "number" ? stage.id : 1)}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+            <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
               stage.difficulty === "Easy"
-                ? "text-emerald-700 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/10"
+                ? "text-emerald-700 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
                 : stage.difficulty === "Medium"
-                ? "text-amber-700 dark:text-amber-400 border-amber-500/25 bg-amber-500/10"
-                : "text-rose-700 dark:text-rose-400 border-rose-500/25 bg-rose-500/10"
+                ? "text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10"
+                : "text-rose-700 dark:text-rose-400 border-rose-500/30 bg-rose-500/10"
             }`}>
               {stage.difficulty || "Standard"}
             </span>
-            <span className="text-[11px] font-mono font-medium text-neutral-500 dark:text-neutral-400">
+            <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400">
               +{stage.xpReward} XP
             </span>
           </div>
         </div>
 
         {/* Big Stage Title */}
-        <h3 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100 mb-1 leading-snug group-hover:text-black dark:group-hover:text-white transition-colors">
+        <h3 className="font-heading text-[16px] font-bold text-slate-900 dark:text-[#F8FAFC] mb-1 leading-snug group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors">
           {stage.title}
         </h3>
 
         {/* Topic Tag */}
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1 mb-3">
-          {stage.chapter} {stage.topic ? `— ${stage.topic}` : ""}
+        <p className="text-xs text-slate-500 dark:text-[#94A3B8] line-clamp-1 mb-3">
+          {stage.topic && stage.topic !== stage.chapter
+            ? `${stage.chapter} — ${stage.topic}`
+            : stage.chapter}
         </p>
 
         {/* Collapsible Curriculum Objective & Tags */}
         {showDetails && (
-          <div className="mt-2 mb-3 p-3.5 rounded-xl bg-neutral-50 dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06] text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed animate-in fade-in duration-200">
-            <div className="font-semibold text-neutral-800 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+          <div className="mt-2 mb-3 p-3.5 rounded-xl bg-slate-50 dark:bg-[#223149]/60 border border-slate-200 dark:border-[#263B5B] text-xs text-slate-700 dark:text-slate-300 leading-relaxed animate-in fade-in duration-200">
+            <div className="font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22D3EE]" />
               <span>Learning Objective:</span>
             </div>
-            <p className="mb-2 text-neutral-600 dark:text-neutral-400">{stage.learningObjective || stage.description}</p>
+            <p className="mb-2 text-slate-600 dark:text-[#94A3B8]">{stage.learningObjective || stage.description}</p>
             {stage.questions[0]?.tags && stage.questions[0].tags.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {stage.questions[0].tags.map((t) => (
                   <span
                     key={t}
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.06] text-neutral-700 dark:text-neutral-300 border border-black/[0.04] dark:border-white/[0.04]"
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 dark:bg-[#182438] text-[#2563EB] dark:text-[#22D3EE] border border-blue-500/20 dark:border-[#22D3EE]/20"
                   >
                     #{t}
                   </span>
@@ -109,22 +117,22 @@ export const StageCard: React.FC<StageCardProps> = ({
       </div>
 
       {/* Card Footer: Status & Start Button */}
-      <div className="pt-3.5 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between">
+      <div className="pt-3.5 border-t border-slate-100 dark:border-[#263B5B]/80 flex items-center justify-between gap-2">
         
         {/* Status Pill */}
         <div className="flex items-center gap-1.5">
           {isCompleted ? (
-            <span className="flex items-center gap-1.5 text-xs font-mono font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-4 h-4 fill-emerald-500/20" />
               <span>Passed ({bestScore}%)</span>
             </span>
           ) : isUnlocked ? (
-            <span className="flex items-center gap-1.5 text-xs font-mono font-medium text-sky-600 dark:text-cyan-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500 dark:bg-cyan-400 animate-pulse" />
-              <span>Available</span>
+            <span className="flex items-center gap-1.5 text-xs font-mono font-medium text-[#2563EB] dark:text-[#22D3EE]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] dark:bg-[#22D3EE] animate-pulse" />
+              <span>Ready</span>
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs font-mono text-neutral-400 dark:text-neutral-600">
+            <span className="flex items-center gap-1.5 text-xs font-mono text-slate-400 dark:text-slate-600">
               <Lock className="w-3.5 h-3.5" />
               <span>Locked</span>
             </span>
@@ -132,17 +140,17 @@ export const StageCard: React.FC<StageCardProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="btn-details-toggle p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+            className="btn-details-toggle p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors"
             title={showDetails ? "Hide syllabus details" : "View syllabus details"}
           >
             {showDetails ? <ChevronUp className="w-4 h-4" /> : <Info className="w-4 h-4" />}
           </button>
 
           {isUnlocked && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs font-medium tracking-tight shadow-sm hover:opacity-90 active:scale-95 transition-all">
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white text-xs font-bold tracking-tight shadow-[0_2px_10px_rgba(37,99,235,0.3)] hover:shadow-[0_4px_16px_rgba(34,211,238,0.5)] active:scale-95 transition-all">
               <Play className="w-3 h-3 fill-current" />
               <span>{isCompleted ? "Retry" : "Start"}</span>
             </div>

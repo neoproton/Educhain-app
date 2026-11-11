@@ -2,38 +2,56 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* EduChain Design System Tokens */
 :root {
-  --background: #fafafa;
-  --foreground: #09090b;
+  /* Light Mode Palette */
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --surface: #ffffff;
-  --surface-hover: #f4f4f5;
+  --surface-hover: #f1f5f9;
   --surface-elevated: #ffffff;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.04);
-  --muted: #71717a;
-  --muted-dark: #a1a1aa;
-  --accent-cyan: #0284c7;
-  --accent-blue: #0070f3;
-  --accent-purple: #7928ca;
+  --surface-navy: #f8fafc;
+  --border: rgba(15, 23, 42, 0.08);
+  --border-subtle: rgba(15, 23, 42, 0.04);
+  --border-glow: rgba(37, 99, 235, 0.2);
+  --muted: #64748b;
+  --muted-dark: #94a3b8;
+
+  /* Primary Brand Accents */
+  --educhain-blue: #2563eb;
+  --educhain-cyan: #22d3ee;
+  --educhain-navy: #101827;
+  --educhain-surface-navy: #182438;
+  --educhain-elevated: #223149;
+  --educhain-violet: #a78bfa;
+  --educhain-amber: #f59e0b;
+
+  /* Subject Color Tokens */
   --math: #0284c7;
   --science: #059669;
   --english: #7c3aed;
   --cs: #d97706;
+
+  /* Typography */
+  --font-heading: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #f4f4f5;
-  --surface: #0a0a0c;
-  --surface-hover: #121215;
-  --surface-elevated: #16161a;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --muted: #a1a1aa;
-  --muted-dark: #52525b;
-  --accent-cyan: #38bdf8;
-  --accent-blue: #0070f3;
-  --accent-purple: #a78bfa;
+  /* EduChain Signature Midnight Navy Dark Mode */
+  --background: #101827;
+  --foreground: #f8fafc;
+  --surface: #182438;
+  --surface-hover: #1f3049;
+  --surface-elevated: #223149;
+  --surface-navy: #182438;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-glow: rgba(34, 211, 238, 0.25);
+  --muted: #94a3b8;
+  --muted-dark: #64748b;
+
+  /* Subject Colors in Dark Mode */
   --math: #38bdf8;
   --science: #34d399;
   --english: #a78bfa;
@@ -43,113 +61,210 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   overflow-x: hidden;
   min-height: 100vh;
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Vercel Grid & Radial Glow utilities */
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+/* ======================================================== */
+/* SIGNATURE EDUCHAIN GRADIENTS                             */
+/* ======================================================== */
+
+/* 1. Main Atmospheric Background */
+.educhain-bg {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(37, 99, 235, 0.08), transparent 45%),
+    radial-gradient(ellipse at 85% 80%, rgba(34, 211, 238, 0.06), transparent 40%),
+    #f8fafc;
+}
+
+.dark .educhain-bg {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(37, 99, 235, 0.18), transparent 45%),
+    radial-gradient(ellipse at 85% 80%, rgba(34, 211, 238, 0.10), transparent 40%),
+    #101827;
+}
+
+/* 2. Primary Action Gradient Button */
+.btn-educhain-primary {
+  background: linear-gradient(135deg, #2563eb, #22d3ee);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.3);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-educhain-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(34, 211, 238, 0.45);
+  filter: brightness(1.06);
+}
+
+.btn-educhain-primary:active {
+  transform: translateY(0);
+}
+
+/* 3. Secondary Glass Button */
+.btn-educhain-secondary {
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+  font-weight: 600;
+  border-radius: 0.875rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-educhain-secondary:hover {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.dark .btn-educhain-secondary {
+  background: rgba(24, 36, 56, 0.6);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .btn-educhain-secondary:hover {
+  background: rgba(34, 49, 73, 0.85);
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* 4. Premium Feature Card Gradient */
+.card-educhain-premium {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.dark .card-educhain-premium {
+  background: linear-gradient(135deg, #182438 0%, #263b5b 50%, #182438 100%);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  box-shadow: 0 12px 36px rgba(16, 24, 39, 0.45);
+}
+
+/* 5. Violet Accent Gradient */
+.bg-educhain-violet {
+  background: linear-gradient(135deg, #6366f1, #a78bfa);
+}
+
+/* 6. Amber Achievement Gradient */
+.bg-educhain-amber {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+/* 7. Subtle Card Lift Effect */
+.card-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.dark .card-lift:hover {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), 0 0 20px rgba(34, 211, 238, 0.06);
+}
+
+/* 8. Gradient Border Wrapper */
+.gradient-border-glow {
+  position: relative;
+}
+.gradient-border-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(34, 211, 238, 0.4), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* 9. Grid Texture Overlay */
 .vercel-grid {
   background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 .dark .vercel-grid {
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
 }
 
-.vercel-glow {
-  background: radial-gradient(800px circle at 50% 0%, rgba(56, 189, 248, 0.05), transparent 70%);
+/* 10. Atmospheric Glow Orbs */
+.glow-orb-blue {
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.16) 0%, transparent 70%);
 }
 
-.dark .vercel-glow {
-  background: radial-gradient(800px circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 70%);
+.glow-orb-cyan {
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.14) 0%, transparent 70%);
 }
 
-.vercel-border {
-  border: 1px solid var(--border);
+.glow-orb-violet {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.14) 0%, transparent 70%);
 }
 
-/* Vercel Button styles */
-.btn-vercel-primary {
-  background-color: #09090b;
-  color: #ffffff;
-  font-weight: 600;
-  border-radius: 0.75rem;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-vercel-primary:hover {
-  background-color: #27272a;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-}
-
-.dark .btn-vercel-primary {
-  background-color: #ffffff;
-  color: #09090b;
-}
-.dark .btn-vercel-primary:hover {
-  background-color: #f4f4f5;
-  box-shadow: 0 0 24px rgba(255, 255, 255, 0.2);
-}
-
-.btn-vercel-secondary {
-  background-color: #ffffff;
-  color: #09090b;
-  border: 1px solid var(--border);
-  font-weight: 500;
-  border-radius: 0.75rem;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-vercel-secondary:hover {
-  background-color: #f4f4f5;
-  border-color: rgba(0, 0, 0, 0.16);
-  transform: translateY(-1px);
-}
-
-.dark .btn-vercel-secondary {
-  background-color: #0d0d10;
-  color: #f4f4f5;
-  border: 1px solid var(--border);
-}
-.dark .btn-vercel-secondary:hover {
-  background-color: #17171c;
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-/* Custom modern scrollbars */
+/* Scrollbar polish - High Visibility & Tactile Feel */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: rgba(16, 24, 39, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #94a3b8;
   border-radius: 9999px;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: #334d75;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #64748b;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: #2563eb;
+}
+
+/* 11. Modal Nested Scroll Area & Touch Momentum */
+.modal-scroll-area {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }

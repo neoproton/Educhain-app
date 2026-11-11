@@ -42,3 +42,8 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+
+# local backups & archives
+/backups/
+*.zip

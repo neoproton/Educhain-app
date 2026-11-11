@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Navbar } from "@/components/Navbar";
 import { StageCard } from "@/components/StageCard";
 import { QuizModal } from "@/components/QuizModal";
@@ -20,10 +21,32 @@ import { GradeType, Stage, SubjectType } from "@/types/curriculum";
 import { GRADE_SHORT_LABELS } from "@/data/constants";
 import { sound } from "@/lib/audio";
 
-const CHAPTER_WORDS = [
-  "One", "Two", "Three", "Four", "Five", "Six",
-  "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"
-];
+const NUMBER_WORDS: Record<number, string> = {
+  1: "One",
+  2: "Two",
+  3: "Three",
+  4: "Four",
+  5: "Five",
+  6: "Six",
+  7: "Seven",
+  8: "Eight",
+  9: "Nine",
+  10: "Ten",
+  11: "Eleven",
+  12: "Twelve",
+  13: "Thirteen",
+  14: "Fourteen",
+  15: "Fifteen",
+  16: "Sixteen",
+  17: "Seventeen",
+  18: "Eighteen",
+  19: "Nineteen",
+  20: "Twenty",
+};
+
+function formatChapterWord(num: number): string {
+  return NUMBER_WORDS[num] || String(num);
+}
 
 interface ChapterGroup {
   chapterIndex: number;
@@ -165,22 +188,31 @@ export default function Home() {
       color: "#38bdf8",
     };
 
-    const chaptersMap = new Map<string, Stage[]>();
+    const chaptersMap = new Map<string, { stages: Stage[]; assignedNumber?: number }>();
 
     subStages.forEach((stage) => {
       const chap = stage.chapter || "Core Curriculum";
       if (!chaptersMap.has(chap)) {
-        chaptersMap.set(chap, []);
+        chaptersMap.set(chap, { stages: [], assignedNumber: stage.chapterNumber });
       }
-      chaptersMap.get(chap)!.push(stage);
+      chaptersMap.get(chap)!.stages.push(stage);
+      if (stage.chapterNumber !== undefined && chaptersMap.get(chap)!.assignedNumber === undefined) {
+        chaptersMap.get(chap)!.assignedNumber = stage.chapterNumber;
+      }
     });
 
-    const chapters: ChapterGroup[] = Array.from(chaptersMap.entries()).map(([chapterName, stages], idx) => ({
-      chapterIndex: idx + 1,
-      chapterWord: CHAPTER_WORDS[idx] || `${idx + 1}`,
-      chapterName,
-      stages,
-    }));
+    let chapters: ChapterGroup[] = Array.from(chaptersMap.entries()).map(([chapterName, info], defaultIdx) => {
+      const chapterIndex = info.assignedNumber !== undefined && info.assignedNumber > 0 ? info.assignedNumber : defaultIdx + 1;
+      return {
+        chapterIndex,
+        chapterWord: formatChapterWord(chapterIndex),
+        chapterName,
+        stages: info.stages,
+      };
+    });
+
+    // Sort chapters according to numerical order chosen by admin
+    chapters.sort((a, b) => a.chapterIndex - b.chapterIndex);
 
     return [{
       subject: subKey,
@@ -192,12 +224,26 @@ export default function Home() {
 
   const handleNextStage = () => {
     if (!selectedStage || !selectedStage.subject) return;
-    const currentSubjectStages = allStages.filter((s) => s.subject === selectedStage.subject);
-    const nextStage = currentSubjectStages.find(
-      (s) => s.subjectStageNumber && selectedStage.subjectStageNumber && s.subjectStageNumber === selectedStage.subjectStageNumber + 1
-    );
+    const orderedStages = subjectGroups[0]?.chapters.flatMap((chap) => chap.stages) || [];
+
+    const currentIdx = orderedStages.findIndex((s) => String(s.id) === String(selectedStage.id));
+    let nextStage =
+      currentIdx !== -1 && currentIdx + 1 < orderedStages.length
+        ? orderedStages[currentIdx + 1]
+        : undefined;
+
+    if (!nextStage) {
+      const fallbackStages = allStages
+        .filter((s) => s.subject === selectedStage.subject && (s.grade || "grade_9") === (selectedStage.grade || grade))
+        .sort((a, b) => (a.chapterNumber ?? 999) - (b.chapterNumber ?? 999) || (a.subjectStageNumber ?? 999) - (b.subjectStageNumber ?? 999));
+      const fbIdx = fallbackStages.findIndex((s) => String(s.id) === String(selectedStage.id));
+      if (fbIdx !== -1 && fbIdx + 1 < fallbackStages.length) {
+        nextStage = fallbackStages[fbIdx + 1];
+      }
+    }
 
     if (nextStage) {
+      sound.playClick();
       setSelectedStage(nextStage);
     } else {
       setSelectedStage(null);
@@ -223,10 +269,11 @@ export default function Home() {
         /* ======================================================== */
         /* VIEW 2: STUDENT INTERACTIVE WORKSPACE */
         /* ======================================================== */
-        <div className="min-h-screen bg-white dark:bg-black text-[#111827] dark:text-[#ededed] flex flex-col vercel-grid relative selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-200">
+        <div className="min-h-screen educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] flex flex-col relative selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
           
           {/* Top subtle glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 vercel-glow pointer-events-none -z-10" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 glow-orb-cyan pointer-events-none -z-10" />
+          <div className="absolute top-72 right-10 w-80 h-80 glow-orb-blue pointer-events-none -z-10" />
 
           {/* Global Navbar */}
           <Navbar
@@ -264,11 +311,11 @@ export default function Home() {
                     <section key={group.subject} className="space-y-6">
                       
                       {/* Single, Clean Subject Header */}
-                      <div className="flex items-center justify-between pb-4 border-b border-black/[0.08] dark:border-white/[0.08]">
+                      <div className="flex items-center justify-between pb-4 border-b border-slate-200/90 dark:border-[#263B5B]">
                         <div className="flex items-center gap-3">
                           <SleekBadgeIcon name={group.subject} color={group.subjectMeta?.color || "#38bdf8"} size="lg" />
                           <div>
-                            <h2 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white tracking-tight">
+                            <h2 className="font-heading text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                               {group.subjectMeta?.name || "Subject"}
                             </h2>
                             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
@@ -276,7 +323,7 @@ export default function Home() {
                             </p>
                           </div>
                         </div>
-                        <span className="text-[11px] font-mono font-medium px-2.5 py-1 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-neutral-50 dark:bg-white/[0.02] text-neutral-600 dark:text-neutral-400">
+                        <span className="text-[11px] font-mono font-bold px-3 py-1 rounded-full border border-blue-500/20 dark:border-cyan-400/25 bg-blue-50/70 dark:bg-[#182438] text-[#2563EB] dark:text-[#22D3EE] shadow-2xs">
                           {group.totalStages} Stages
                         </span>
                       </div>
@@ -287,12 +334,12 @@ export default function Home() {
                           <div key={chapter.chapterName} className="space-y-4">
                             
                             {/* Chapter Header: Like "Chapter One • Matrices and Determinants" */}
-                            <div className="flex items-center justify-between pb-2.5 border-b border-black/[0.05] dark:border-white/[0.06]">
+                            <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-[#223149]">
                               <div className="flex items-center gap-2.5">
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black">
+                                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs">
                                   Chapter {chapter.chapterWord}
                                 </span>
-                                <h3 className="text-sm sm:text-[15px] font-semibold text-neutral-900 dark:text-white">
+                                <h3 className="font-heading text-sm sm:text-[15px] font-bold text-slate-900 dark:text-white">
                                   {chapter.chapterName}
                                 </h3>
                               </div>
@@ -361,18 +408,18 @@ export default function Home() {
           </main>
 
           {/* Footer */}
-          <footer className="border-t border-neutral-200 dark:border-white/[0.08] py-8 bg-neutral-50 dark:bg-black/90 text-center text-xs text-neutral-500 font-mono transition-colors duration-200">
+          <footer className="border-t border-slate-200/80 dark:border-[#223149] py-8 bg-white/70 dark:bg-[#101827]/90 text-center text-xs text-slate-500 dark:text-[#94A3B8] font-mono transition-colors duration-200">
             <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <span>EduChain v2.0 • Easy Student Experience</span>
                 <span>•</span>
-                <span className="text-emerald-600 dark:text-emerald-400">Next.js 15 + Supabase</span>
+                <span className="text-emerald-600 dark:text-emerald-400">Next.js 16 + Supabase</span>
               </div>
 
               <div className="flex items-center gap-3">
                 <Link
                   href="/admin"
-                  className="px-2.5 py-1 rounded-md border border-neutral-200 dark:border-white/10 hover:border-neutral-400 dark:hover:border-white/30 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white transition-all shadow-xs flex items-center gap-1.5 font-bold"
                 >
                   <span>Admin Studio ⚙️</span>
                 </Link>
@@ -389,9 +436,14 @@ export default function Home() {
           {/* Active Quiz Modal */}
           {selectedStage && (
             <QuizModal
+              key={selectedStage.id}
               stage={selectedStage}
               onClose={() => setSelectedStage(null)}
               onNextStage={handleNextStage}
+              onOpenLeaderboard={() => {
+                setSelectedStage(null);
+                setActiveTab("leaderboard");
+              }}
             />
           )}
 

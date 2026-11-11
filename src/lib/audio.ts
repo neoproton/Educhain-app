@@ -34,6 +34,11 @@ class AudioSynthesizer {
     this.enabled = enabled;
   }
 
+  public syncSettings(enabled: boolean, volume: number) {
+    this.setEnabled(enabled);
+    this.setVolume(volume);
+  }
+
   public playTone(freq: number, type: OscillatorType = "sine", duration: number = 0.15, gainVal: number = 0.2) {
     if (!this.enabled) return;
     try {
@@ -172,6 +177,39 @@ class AudioSynthesizer {
         gain.connect(this.masterGain);
         osc.start(now + idx * 0.07);
         osc.stop(now + idx * 0.07 + 0.5);
+      });
+    } catch {}
+  }
+
+  public playChampion() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain) return;
+      const now = this.ctx.currentTime;
+      const fanfare = [
+        { f: 523.25, t: 0, d: 0.16, type: "triangle" as OscillatorType },
+        { f: 659.25, t: 0.11, d: 0.16, type: "triangle" as OscillatorType },
+        { f: 783.99, t: 0.22, d: 0.18, type: "triangle" as OscillatorType },
+        { f: 1046.5, t: 0.34, d: 0.32, type: "sine" as OscillatorType },
+        { f: 783.99, t: 0.52, d: 0.14, type: "triangle" as OscillatorType },
+        { f: 1046.5, t: 0.65, d: 0.55, type: "sine" as OscillatorType },
+        { f: 1318.51, t: 0.68, d: 0.55, type: "sine" as OscillatorType },
+        { f: 1567.98, t: 0.72, d: 0.65, type: "sine" as OscillatorType },
+      ];
+      fanfare.forEach(({ f, t, d, type }) => {
+        if (!this.ctx || !this.masterGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(f, now + t);
+        gain.gain.setValueAtTime(0.0001, now + t);
+        gain.gain.linearRampToValueAtTime(0.18, now + t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + d);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now + t);
+        osc.stop(now + t + d + 0.04);
       });
     } catch {}
   }

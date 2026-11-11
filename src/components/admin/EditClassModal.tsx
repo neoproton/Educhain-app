@@ -5,6 +5,7 @@ import { X, Save, GraduationCap } from "lucide-react";
 import { SchoolClass } from "@/types/curriculum";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 interface EditClassModalProps {
   schoolClass: SchoolClass | null;
@@ -19,6 +20,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({
   onClose,
   onSaved,
 }) => {
+  useBodyScrollLock(isOpen && Boolean(schoolClass));
   const { updateClass } = useCurriculumStore();
 
   if (!isOpen || !schoolClass) return null;
@@ -74,11 +76,11 @@ function EditClassForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-hidden" onClick={(e) => { if (e.target === e.currentTarget) { sound.playClick(); onClose(); } }}>
+      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl flex flex-col min-h-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
+        <div className="shrink-0 flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-cyan-400 border border-sky-500/20">
               <GraduationCap className="w-5 h-5" />
@@ -105,7 +107,7 @@ function EditClassForm({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="p-6 space-y-4">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-mono font-semibold uppercase mb-1">
@@ -172,7 +174,7 @@ function EditClassForm({
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
+              className="btn-educhain-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? "Saving..." : "Update Class"}</span>

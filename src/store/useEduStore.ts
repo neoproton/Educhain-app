@@ -11,6 +11,7 @@ import { sound } from "@/lib/audio";
 interface EduStoreState extends UserState {
   mistakes: MistakeRecord[];
   quizHistory: QuizAttemptRecord[];
+  celebratedLeaderboards: string[];
   
   // Actions
   setProfile: (name: string, avatar: string, grade: GradeType, isGuest?: boolean) => void;
@@ -20,6 +21,8 @@ interface EduStoreState extends UserState {
   signOut: () => void;
   updateSettings: (settings: Partial<UserState["settings"]>) => void;
   addXp: (amount: number) => void;
+  markLeaderboardCelebrated: (category: string) => void;
+  clearLeaderboardCelebrated: (category: string) => void;
   recordQuizAttempt: (attempt: {
     stageId: number | string;
     subject: SubjectType;
@@ -27,6 +30,7 @@ interface EduStoreState extends UserState {
     total: number;
     accuracy: number;
     xpEarned: number;
+    fastAnswersCount?: number;
     missedQuestions: Array<{
       id: string;
       question: string;
@@ -75,12 +79,59 @@ const DEFAULT_STATE: UserState = {
   },
 };
 
+function syncEduProfileToCloud(get: () => EduStoreState) {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const current = get();
+      const accuracy =
+        current.totalQuestionsAnswered > 0
+          ? Math.round((current.totalQuestionsCorrect / current.totalQuestionsAnswered) * 100)
+          : 0;
+      supabase
+        .from("profiles")
+        .upsert({
+          id: session.user.id,
+          player_name: current.name,
+          player_avatar: current.avatar,
+          player_grade: current.grade,
+          xp: current.xp,
+          stages_completed: current.completedStages.length,
+          current_streak: current.currentStreak,
+          longest_streak: current.longestStreak,
+          accuracy,
+          quizzes_attempted: current.totalQuizzesAttempted,
+          questions_answered: current.totalQuestionsAnswered,
+          questions_correct: current.totalQuestionsCorrect,
+          subject_progress: current.subjectProgress,
+          completed_stages_list: current.completedStages.filter((id) => typeof id === "number"),
+          unlocked_achievements: current.unlockedAchievements,
+        })
+        .then(() => {});
+    }
+  });
+}
+
 export const useEduStore = create<EduStoreState>()(
   persist(
     (set, get) => ({
       ...DEFAULT_STATE,
       mistakes: [],
       quizHistory: [],
+      celebratedLeaderboards: [],
+
+      markLeaderboardCelebrated: (category) => {
+        set((state) => ({
+          celebratedLeaderboards: state.celebratedLeaderboards.includes(category)
+            ? state.celebratedLeaderboards
+            : [...state.celebratedLeaderboards, category],
+        }));
+      },
+
+      clearLeaderboardCelebrated: (category) => {
+        set((state) => ({
+          celebratedLeaderboards: state.celebratedLeaderboards.filter((c) => c !== category),
+        }));
+      },
 
       setProfile: (name, avatar, grade, isGuest = false) => {
         set({ name, avatar, grade, isGuest });
@@ -110,11 +161,17 @@ export const useEduStore = create<EduStoreState>()(
         set((state) => ({
           ...state,
           ...cloudData,
+          subjectProgress: {
+            ...DEFAULT_STATE.subjectProgress,
+            ...(cloudData.subjectProgress || {}),
+          },
+          settings: state.settings,
           isGuest: false,
         }));
       },
 
       setGuestSession: () => {
+        const preservedSettings = get().settings;
         set({
           ...DEFAULT_STATE,
           name: "Guest Explorer",
@@ -122,10 +179,13 @@ export const useEduStore = create<EduStoreState>()(
           isGuest: true,
           mistakes: [],
           quizHistory: [],
+          celebratedLeaderboards: [],
+          settings: preservedSettings,
         });
       },
 
       signOut: () => {
+        const preservedSettings = get().settings;
         set({
           ...DEFAULT_STATE,
           name: "Guest Explorer",
@@ -133,6 +193,8 @@ export const useEduStore = create<EduStoreState>()(
           isGuest: true,
           mistakes: [],
           quizHistory: [],
+          celebratedLeaderboards: [],
+          settings: preservedSettings,
         });
       },
 
@@ -155,8 +217,7 @@ export const useEduStore = create<EduStoreState>()(
       updateSettings: (newSettings) => {
         set((state) => {
           const updated = { ...state.settings, ...newSettings };
-          sound.setEnabled(updated.soundEnabled);
-          sound.setVolume(updated.volume);
+          sound.syncSettings(updated.soundEnabled, updated.volume);
           if (typeof document !== "undefined" && updated.theme) {
             if (updated.theme === "dark") {
               document.documentElement.classList.add("dark");
@@ -171,7 +232,7 @@ export const useEduStore = create<EduStoreState>()(
       addXp: (amount) => {
         set((state) => {
           const oldXp = state.xp;
-          const newXp = oldXp + amount;
+          const newXp = Math.max(0, oldXp + amount);
 
           // Check for Rank Level Up
           const oldRank = RANKS.slice().reverse().find((r) => oldXp >= r.minXp);
@@ -182,11 +243,12 @@ export const useEduStore = create<EduStoreState>()(
 
           return { xp: newXp };
         });
+        syncEduProfileToCloud(get);
       },
 
       recordQuizAttempt: (attempt) => {
         const state = get();
-        const { stageId, subject, score, total, accuracy, xpEarned, missedQuestions } = attempt;
+        const { stageId, subject, score, total, accuracy, xpEarned, fastAnswersCount = 0, missedQuestions } = attempt;
 
         const dateStr = new Date().toISOString();
         const passed = accuracy >= 70;
@@ -222,14 +284,17 @@ export const useEduStore = create<EduStoreState>()(
           ? [...state.unlockedStages, nextStageId]
           : state.unlockedStages;
 
-        // Update mistakes pool
-        let updatedMistakes = [...state.mistakes];
+        // Update mistakes pool immutably
+        const updatedMistakes = [...state.mistakes];
         missedQuestions.forEach((q) => {
           const existingIdx = updatedMistakes.findIndex((m) => m.questionId === q.id);
           if (existingIdx >= 0) {
-            updatedMistakes[existingIdx].timesMissed += 1;
-            updatedMistakes[existingIdx].mastered = false;
-            updatedMistakes[existingIdx].missedAt = dateStr;
+            updatedMistakes[existingIdx] = {
+              ...updatedMistakes[existingIdx],
+              timesMissed: updatedMistakes[existingIdx].timesMissed + 1,
+              mastered: false,
+              missedAt: dateStr,
+            };
           } else {
             updatedMistakes.push({
               id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -247,20 +312,22 @@ export const useEduStore = create<EduStoreState>()(
           }
         });
 
-        // Achievements check
+        // Achievements check (accumulate bonus XP so state.xp update preserves all rewards)
         const newAchievements = [...state.unlockedAchievements];
+        let bonusAchievementXp = 0;
         const checkUnlock = (id: string) => {
           if (!newAchievements.includes(id)) {
             newAchievements.push(id);
             sound.playAchievement();
             const ach = ACHIEVEMENTS.find((a) => a.id === id);
             if (ach) {
-              get().addXp(ach.xpReward);
+              bonusAchievementXp += ach.xpReward;
             }
           }
         };
 
         if (passed) checkUnlock("first_link");
+        if (fastAnswersCount >= 1) checkUnlock("quick_thinker");
         if (accuracy === 100) checkUnlock("perfect_round");
         if (subject === "mathematics" && updatedCompleted.length >= 2) checkUnlock("math_explorer");
         if (subject === "science" && updatedCompleted.length >= 2) checkUnlock("science_voyager");
@@ -268,15 +335,24 @@ export const useEduStore = create<EduStoreState>()(
         if (subject === "computer_science" && updatedCompleted.length >= 2) checkUnlock("cs_architect");
 
         const allSubjectsHaveCompletion =
-          (subject === "mathematics" ? updatedCompleted.length : state.subjectProgress.mathematics.completedStages.length) >= 1 &&
-          (subject === "science" ? updatedCompleted.length : state.subjectProgress.science.completedStages.length) >= 1 &&
-          (subject === "english" ? updatedCompleted.length : state.subjectProgress.english.completedStages.length) >= 1 &&
-          (subject === "computer_science" ? updatedCompleted.length : state.subjectProgress.computer_science.completedStages.length) >= 1;
+          (subject === "mathematics" ? updatedCompleted.length : state.subjectProgress.mathematics?.completedStages?.length || 0) >= 1 &&
+          (subject === "science" ? updatedCompleted.length : state.subjectProgress.science?.completedStages?.length || 0) >= 1 &&
+          (subject === "english" ? updatedCompleted.length : state.subjectProgress.english?.completedStages?.length || 0) >= 1 &&
+          (subject === "computer_science" ? updatedCompleted.length : state.subjectProgress.computer_science?.completedStages?.length || 0) >= 1;
 
         if (allSubjectsHaveCompletion) checkUnlock("polymath");
 
+        const oldXp = state.xp;
+        const totalXpGain = xpEarned + bonusAchievementXp;
+        const newXp = oldXp + totalXpGain;
+        const oldRank = RANKS.slice().reverse().find((r) => oldXp >= r.minXp);
+        const newRank = RANKS.slice().reverse().find((r) => newXp >= r.minXp);
+        if (oldRank && newRank && newRank.level > oldRank.level) {
+          sound.playUnlock();
+        }
+
         set({
-          xp: state.xp + xpEarned,
+          xp: newXp,
           completedStages: globalCompleted,
           unlockedStages: globalUnlocked,
           bestScores: { ...state.bestScores, [stageId]: Math.max(state.bestScores[stageId] || 0, accuracy) },
@@ -295,7 +371,7 @@ export const useEduStore = create<EduStoreState>()(
           mistakes: updatedMistakes,
           quizHistory: [
             ...state.quizHistory,
-            { stageId, subject, score, total, accuracy, xpEarned, completedAt: dateStr },
+            { stageId, subject, score, total, accuracy, xpEarned: totalXpGain, completedAt: dateStr },
           ],
           unlockedAchievements: newAchievements,
         });
@@ -303,76 +379,93 @@ export const useEduStore = create<EduStoreState>()(
         get().checkStreak();
 
         // Automatically sync progress to Supabase for authenticated users
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user) {
-            const current = get();
-            supabase.from("profiles").upsert({
-              id: session.user.id,
-              player_name: current.name,
-              player_avatar: current.avatar,
-              player_grade: current.grade,
-              xp: current.xp,
-              stages_completed: current.completedStages.length,
-              current_streak: current.currentStreak,
-              longest_streak: current.longestStreak,
-              accuracy: current.totalQuestionsAnswered > 0 ? Math.round((current.totalQuestionsCorrect / current.totalQuestionsAnswered) * 100) : 0,
-              quizzes_attempted: current.totalQuizzesAttempted,
-              questions_answered: current.totalQuestionsAnswered,
-              questions_correct: current.totalQuestionsCorrect,
-              subject_progress: current.subjectProgress,
-              completed_stages_list: current.completedStages.filter((id) => typeof id === "number"),
-              unlocked_achievements: current.unlockedAchievements,
-            }).then(() => {});
-          }
-        });
+        syncEduProfileToCloud(get);
       },
 
       masterMistake: (mistakeId) => {
+        let unlockedForger = false;
         set((state) => {
           const updated = state.mistakes.map((m) =>
             m.id === mistakeId ? { ...m, mastered: true } : m
           );
           const masteredCount = updated.filter((m) => m.mastered).length;
           if (masteredCount >= 5 && !state.unlockedAchievements.includes("mistake_forger")) {
+            unlockedForger = true;
             sound.playAchievement();
-            get().addXp(100);
+            return {
+              mistakes: updated,
+              xp: state.xp + 100,
+              unlockedAchievements: [...state.unlockedAchievements, "mistake_forger"],
+            };
           }
           return { mistakes: updated };
         });
+        if (unlockedForger) {
+          syncEduProfileToCloud(get);
+        }
       },
 
       checkStreak: () => {
-        const today = new Date().toISOString().split("T")[0];
+        const today = new Date().toLocaleDateString("en-CA"); // Local YYYY-MM-DD
         const state = get();
         if (!state.lastActiveDate) {
-          set({ lastActiveDate: today, currentStreak: 1, longestStreak: 1 });
+          set({ lastActiveDate: today, currentStreak: 1, longestStreak: Math.max(1, state.longestStreak) });
           return;
         }
 
         if (state.lastActiveDate === today) return;
 
-        const lastDate = new Date(state.lastActiveDate);
-        const currDate = new Date(today);
-        const diffDays = Math.round((currDate.getTime() - lastDate.getTime()) / (1000 * 3600 * 24));
+        const parseDayUtc = (isoDay: string) => {
+          const parts = isoDay.split("-").map(Number);
+          if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+          return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+        };
+
+        const lastMs = parseDayUtc(state.lastActiveDate);
+        const currMs = parseDayUtc(today);
+        const diffDays = lastMs !== null && currMs !== null ? Math.round((currMs - lastMs) / 86400000) : 1;
 
         if (diffDays === 1) {
           const nextStreak = state.currentStreak + 1;
           const nextLongest = Math.max(nextStreak, state.longestStreak);
-          set({ currentStreak: nextStreak, longestStreak: nextLongest, lastActiveDate: today });
+          const nextAchievements = [...state.unlockedAchievements];
+          let bonusXp = 0;
 
-          if (nextStreak >= 3 && !state.unlockedAchievements.includes("streak_starter")) {
-            get().addXp(75);
+          if (nextStreak >= 3 && !nextAchievements.includes("streak_starter")) {
+            nextAchievements.push("streak_starter");
+            bonusXp += 75;
+            sound.playAchievement();
           }
-          if (nextStreak >= 7 && !state.unlockedAchievements.includes("streak_titan")) {
-            get().addXp(150);
+          if (nextStreak >= 7 && !nextAchievements.includes("streak_titan")) {
+            nextAchievements.push("streak_titan");
+            bonusXp += 150;
+            sound.playAchievement();
           }
+
+          set({
+            currentStreak: nextStreak,
+            longestStreak: nextLongest,
+            lastActiveDate: today,
+            xp: state.xp + bonusXp,
+            unlockedAchievements: nextAchievements,
+          });
+          syncEduProfileToCloud(get);
         } else if (diffDays > 1) {
           set({ currentStreak: 1, lastActiveDate: today });
+          syncEduProfileToCloud(get);
         }
       },
 
       resetProgress: () => {
-        set({ ...DEFAULT_STATE, mistakes: [], quizHistory: [] });
+        const currentSettings = get().settings;
+        set({
+          ...DEFAULT_STATE,
+          mistakes: [],
+          quizHistory: [],
+          celebratedLeaderboards: [],
+          settings: currentSettings,
+        });
+        sound.syncSettings(currentSettings.soundEnabled, currentSettings.volume);
       },
 
       exportData: () => {
@@ -384,7 +477,16 @@ export const useEduStore = create<EduStoreState>()(
         try {
           const parsed = JSON.parse(jsonData);
           if (parsed && typeof parsed.xp === "number" && parsed.subjectProgress) {
-            set({ ...parsed });
+            const restoredSettings = parsed.settings ?? get().settings;
+            set({
+              ...DEFAULT_STATE,
+              ...parsed,
+              celebratedLeaderboards: Array.isArray(parsed.celebratedLeaderboards)
+                ? parsed.celebratedLeaderboards
+                : [],
+              settings: restoredSettings,
+            });
+            sound.syncSettings(restoredSettings.soundEnabled, restoredSettings.volume);
             return true;
           }
           return false;
@@ -396,6 +498,11 @@ export const useEduStore = create<EduStoreState>()(
     {
       name: "educhain_v2_store",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state?.settings) {
+          sound.syncSettings(state.settings.soundEnabled, state.settings.volume);
+        }
+      },
     }
   )
 );

@@ -1,21 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { 
   Swords, 
-  Users, 
   ArrowLeft, 
   Plus, 
   LogIn, 
-  Sparkles, 
-  Flame, 
   Globe, 
-  ChevronRight,
-  RefreshCw,
-  Trophy,
-  Zap
+  ChevronRight, 
+  RefreshCw 
 } from "lucide-react";
 import { useMultiplayerStore } from "@/store/useMultiplayerStore";
 import { useEduStore } from "@/store/useEduStore";
@@ -53,30 +49,23 @@ function BattleContent() {
     setLocalPlayer(id, name || "Scholar", avatar || "🧠");
   }, [name, avatar, setLocalPlayer, localPlayerId]);
 
+  // Leave room cleanly if navigating away from /battle
+  useEffect(() => {
+    return () => {
+      useMultiplayerStore.getState().leaveRoom();
+    };
+  }, []);
+
   // Load public rooms
-  const loadRooms = async () => {
+  const loadRooms = useCallback(async () => {
     setLoadingRooms(true);
     const rooms = await fetchPublicRooms();
     setPublicRooms(rooms);
     setLoadingRooms(false);
-  };
+  }, [fetchPublicRooms]);
 
-  useEffect(() => {
-    if (gameStatus === "idle") {
-      loadRooms();
-    }
-  }, [gameStatus]);
-
-  // If URL has ?room=CODE, attempt auto-join
-  useEffect(() => {
-    if (roomQueryCode && gameStatus === "idle") {
-      setJoinCodeInput(roomQueryCode);
-      handleJoin(roomQueryCode);
-    }
-  }, [roomQueryCode, gameStatus]);
-
-  const handleJoin = async (codeToJoin?: string) => {
-    const code = (codeToJoin || joinCodeInput).trim().toUpperCase();
+  const handleJoin = useCallback(async (codeToJoin?: string) => {
+    const code = (codeToJoin ?? joinCodeInput).trim().toUpperCase();
     if (!code) {
       setErrorMessage("Please enter a 6-digit room code.");
       return;
@@ -94,7 +83,27 @@ function BattleContent() {
     } else {
       setErrorMessage(res.error || "Failed to join room.");
     }
-  };
+  }, [joinCodeInput, joinRoom]);
+
+  useEffect(() => {
+    if (gameStatus === "idle") {
+      const timer = setTimeout(() => {
+        void loadRooms();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [gameStatus, loadRooms]);
+
+  // If URL has ?room=CODE, attempt auto-join
+  useEffect(() => {
+    if (roomQueryCode && gameStatus === "idle") {
+      const timer = setTimeout(() => {
+        setJoinCodeInput(roomQueryCode);
+        void handleJoin(roomQueryCode);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [roomQueryCode, gameStatus, handleJoin]);
 
   // Render Game Views
   if (gameStatus === "lobby") {
@@ -114,30 +123,36 @@ function BattleContent() {
     <div className="space-y-10 animate-in fade-in duration-300">
       
       {/* Hero Banner */}
-      <div className="p-8 sm:p-12 rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+      <div className="p-8 sm:p-12 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-gradient-to-br dark:from-[#182438] dark:via-[#1e3250] dark:to-[#182438] shadow-xl dark:shadow-[0_15px_45px_rgba(16,24,39,0.5)] relative overflow-hidden card-lift">
+        <div className="absolute top-0 right-0 w-96 h-96 glow-orb-cyan pointer-events-none -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 glow-orb-blue pointer-events-none -ml-20 -mb-20" />
 
         <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <Swords className="w-3.5 h-3.5" />
-            <span>Real-Time Multiplayer Arena</span>
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11 rounded-2xl overflow-hidden border border-[#2563EB]/40 dark:border-[#22D3EE]/40 bg-[#101827] shadow-md shrink-0">
+              <Image src="/logo.png" alt="EduChain Logo" fill sizes="44px" className="object-cover" priority />
+            </div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs">
+              <Swords className="w-3.5 h-3.5 animate-pulse" />
+              <span>Real-Time Multiplayer Arena</span>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-white leading-tight">
+          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
             Challenge Your Friends in Live Quiz Showdowns
           </h1>
 
-          <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-[#94A3B8] leading-relaxed">
             Create custom battle rooms configured for any subject and chapter, or join live lobbies to test your speed, combos, and knowledge in head-to-head multiplayer.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-wrap items-center gap-3.5">
             <button
               onClick={() => {
                 sound.playClick();
                 setIsCreateOpen(true);
               }}
-              className="btn-vercel-primary px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="btn-educhain-primary px-7 py-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg"
             >
               <Plus className="w-4 h-4" />
               <span>Create Custom Room</span>
@@ -145,7 +160,7 @@ function BattleContent() {
 
             <Link
               href="/"
-              className="px-5 py-3 rounded-2xl text-xs font-semibold border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-all text-neutral-700 dark:text-neutral-300"
+              className="btn-educhain-secondary px-6 py-3.5 rounded-2xl text-xs font-bold"
             >
               <span>Back to Solo Quests</span>
             </Link>
@@ -155,38 +170,38 @@ function BattleContent() {
 
       {/* Error alert */}
       {errorMessage && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold">
           {errorMessage}
         </div>
       )}
 
       {/* Join Room Box */}
-      <div className="p-6 rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] shadow-md">
+      <div className="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-sm card-lift">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-              <LogIn className="w-4 h-4 text-cyan-500" />
+            <h3 className="font-heading text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <LogIn className="w-4 h-4 text-[#22D3EE]" />
               <span>Have an Invite Code?</span>
             </h3>
-            <p className="text-xs text-neutral-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
               Enter the 6-character room code shared by your friend (e.g. EDU-482)
             </p>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <input
               type="text"
               value={joinCodeInput}
               onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
               placeholder="EDU-XXX"
               maxLength={8}
-              className="w-full sm:w-44 px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-sm font-mono font-bold tracking-widest text-neutral-900 dark:text-white uppercase placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400"
+              className="w-full sm:w-48 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827] text-sm font-mono font-extrabold tracking-widest text-slate-900 dark:text-white uppercase placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#22D3EE]"
             />
 
             <button
               disabled={isJoining || !joinCodeInput.trim()}
               onClick={() => handleJoin()}
-              className="btn-vercel-primary px-5 py-2.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-md disabled:opacity-50"
+              className="btn-educhain-primary px-6 py-2.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-md disabled:opacity-50"
             >
               <span>{isJoining ? "Joining..." : "Join Battle"}</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -200,7 +215,7 @@ function BattleContent() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-emerald-500" />
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
+            <h3 className="font-heading text-sm font-bold text-slate-900 dark:text-white">
               Open Public Rooms
             </h3>
           </div>
@@ -208,7 +223,7 @@ function BattleContent() {
           <button
             onClick={loadRooms}
             disabled={loadingRooms}
-            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors font-bold font-mono"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingRooms ? "animate-spin" : ""}`} />
             <span>Refresh</span>
@@ -216,12 +231,12 @@ function BattleContent() {
         </div>
 
         {publicRooms.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-neutral-200 dark:border-white/10 text-center space-y-3">
-            <div className="text-3xl">⚔️</div>
-            <div className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
+          <div className="p-8 sm:p-12 rounded-3xl border border-dashed border-slate-300 dark:border-[#263B5B] bg-white/60 dark:bg-[#182438]/40 text-center space-y-3">
+            <div className="text-4xl mb-2">⚔️</div>
+            <div className="font-heading text-sm font-bold text-slate-800 dark:text-slate-200">
               No public lobbies waiting right now
             </div>
-            <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
+            <p className="text-xs text-slate-500 dark:text-[#94A3B8] max-w-sm mx-auto">
               Be the first! Click &ldquo;Create Custom Room&rdquo; above and set it to Public so other scholars can join your arena.
             </p>
           </div>
@@ -230,34 +245,34 @@ function BattleContent() {
             {publicRooms.map((room) => (
               <div
                 key={room.id}
-                className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#0c0c0c] hover:border-neutral-300 dark:hover:border-white/20 transition-all shadow-sm space-y-3"
+                className="p-6 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all duration-300 shadow-sm card-lift space-y-3.5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold">
+                  <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold">
                     {room.mode === "duel" ? "⚔️ 1v1" : "👥 Party"}
                   </span>
-                  <span className="text-xs font-mono font-bold text-neutral-500">
+                  <span className="text-xs font-mono font-bold text-slate-500 dark:text-[#94A3B8]">
                     {room.roomCode}
                   </span>
                 </div>
 
                 <div>
-                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white truncate">
+                  <h4 className="font-heading font-bold text-sm text-slate-900 dark:text-white truncate">
                     {room.roomName}
                   </h4>
-                  <div className="text-xs text-neutral-500 truncate mt-0.5">
+                  <div className="text-xs text-slate-500 dark:text-[#94A3B8] truncate mt-0.5">
                     {room.subjectName} • {room.chapter || "All Chapters"}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-neutral-100 dark:border-white/5 text-[11px] text-neutral-500">
+                <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-[#263B5B]/60 text-[11px] text-slate-500 dark:text-[#94A3B8] font-mono">
                   <span>Host: {room.hostName}</span>
                   <span>{room.questionCount} Qs • {room.timePerQuestion}s</span>
                 </div>
 
                 <button
                   onClick={() => handleJoin(room.roomCode)}
-                  className="w-full py-2 rounded-xl text-xs font-bold btn-vercel-primary flex items-center justify-center gap-1.5 shadow-sm"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold btn-educhain-primary flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <span>Join Room</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -280,27 +295,29 @@ function BattleContent() {
 
 export default function BattlePage() {
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100 font-sans selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-black">
+    <div className="min-h-screen educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
       
       {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-neutral-200 dark:border-white/10 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-[#223149]/70 bg-white/85 dark:bg-[#101827]/85 backdrop-blur-xl">
+        <div className="h-[2px] w-full bg-gradient-to-r from-rose-500 via-[#22D3EE] to-[#2563EB]" />
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link 
               href="/"
-              className="p-2 rounded-lg border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+              className="p-2 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs"
               title="Return to Solo Quests"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-tight">EduChain Arena</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold uppercase animate-pulse">
+                <span className="font-heading font-extrabold text-base tracking-tight text-slate-900 dark:text-white">EduChain Arena</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold uppercase animate-pulse">
                   Multiplayer
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+              <p className="text-[11px] text-slate-500 dark:text-[#94A3B8]">
                 Synchronized Peer-to-Peer Quiz Battles
               </p>
             </div>
@@ -308,7 +325,7 @@ export default function BattlePage() {
 
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs"
           >
             <span>Solo Quests</span>
           </Link>
@@ -317,7 +334,7 @@ export default function BattlePage() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Suspense fallback={<div className="text-center py-20 text-xs text-neutral-400">Loading Battle Arena...</div>}>
+        <Suspense fallback={<div className="text-center py-20 text-xs text-slate-400 font-mono">Loading Battle Arena...</div>}>
           <BattleContent />
         </Suspense>
       </main>

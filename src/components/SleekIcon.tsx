@@ -107,7 +107,65 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "🔥": Flame,
   "💯": Trophy,
   "🎯": Target,
+
+  // Direct Icon & Keyword Aliases
+  sparkles: Sparkles,
+  "✨": Sparkles,
+  zap: Zap,
+  shield: Shield,
+  crown: Crown,
+  terminal: Terminal,
+  atom: Atom,
+  "⚛️": Atom,
+  calculator: Calculator,
+  book_open: BookOpen,
+  graduation_cap: GraduationCap,
+  graduationcap: GraduationCap,
+  flask_conical: FlaskConical,
+  code: Code2,
+  boxes: Boxes,
 };
+
+/**
+ * Maps icon names to clean unicode glyphs/emojis for native select options
+ */
+export function getIconGlyph(name?: string): string {
+  if (!name) return "📚";
+  if (/\p{Extended_Pictographic}/u.test(name)) return name;
+  const key = name.toLowerCase().trim();
+  const map: Record<string, string> = {
+    sparkles: "✨",
+    grade_9: "✨",
+    class_9: "✨",
+    zap: "⚡",
+    grade_10: "⚡",
+    class_10: "⚡",
+    shield: "🛡️",
+    grade_11: "🛡️",
+    class_11: "🛡️",
+    crown: "👑",
+    grade_12: "👑",
+    class_12: "👑",
+    graduation_cap: "🎓",
+    graduationcap: "🎓",
+    class_8: "🎓",
+    class_7: "🎓",
+    class_6: "🎓",
+    atom: "⚛️",
+    science: "⚛️",
+    terminal: "💻",
+    computer_science: "💻",
+    cs: "💻",
+    calculator: "📐",
+    mathematics: "📐",
+    languages: "📖",
+    english: "📖",
+    book_open: "📚",
+    pak_studies: "🌍",
+    islamiat: "🕌",
+  };
+  return map[key] || "📚";
+}
 
 interface SleekIconProps {
   name?: string;
@@ -171,18 +229,33 @@ export const SleekBadgeIcon: React.FC<{
 export const ScholarAvatar: React.FC<{
   name?: string;
   avatar?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }> = ({ name = "Scholar", avatar = "", size = "sm", className = "" }) => {
   const sizeClass = {
-    sm: "w-6 h-6 text-[10px]",
-    md: "w-9 h-9 text-xs",
-    lg: "w-12 h-12 text-sm",
+    xs: "w-5 h-5 text-[10px]",
+    sm: "w-6 h-6 text-[11px]",
+    md: "w-9 h-9 text-sm",
+    lg: "w-12 h-12 text-lg",
+    xl: "w-16 h-16 text-2xl",
   }[size];
 
-  // If avatar matches a known glyph key
-  const cleanAv = avatar.toLowerCase().trim();
+  const iconSize = {
+    xs: "w-3 h-3",
+    sm: "w-3.5 h-3.5",
+    md: "w-4 h-4",
+    lg: "w-6 h-6",
+    xl: "w-8 h-8",
+  }[size];
+
+  const rawAv = (avatar || "").trim();
+  const cleanAv = rawAv.toLowerCase();
   const Glyph = ICON_MAP[cleanAv];
+  const isEmojiOrSymbol =
+    Boolean(rawAv) &&
+    !Glyph &&
+    (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/u.test(rawAv) ||
+      (!/^[a-z0-9_\s-]+$/i.test(rawAv) && rawAv.length <= 6));
 
   // Otherwise generate elegant 2-letter initials
   const initials = name
@@ -194,10 +267,12 @@ export const ScholarAvatar: React.FC<{
 
   return (
     <div
-      className={`rounded-full shrink-0 flex items-center justify-center font-mono font-bold border border-black/10 dark:border-white/10 bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900 text-neutral-800 dark:text-neutral-200 shadow-xs ${sizeClass} ${className}`}
+      className={`rounded-full shrink-0 flex items-center justify-center font-mono font-bold border border-black/10 dark:border-white/10 bg-gradient-to-br from-blue-500/10 via-neutral-100 to-cyan-500/10 dark:from-[#223149] dark:to-[#182438] text-neutral-800 dark:text-neutral-100 shadow-xs select-none ${sizeClass} ${className}`}
     >
       {Glyph ? (
-        <Glyph className={size === "sm" ? "w-3 h-3" : size === "md" ? "w-4 h-4" : "w-6 h-6"} strokeWidth={2} />
+        <Glyph className={iconSize} strokeWidth={2} />
+      ) : isEmojiOrSymbol ? (
+        <span className="leading-none">{rawAv}</span>
       ) : (
         <span>{initials}</span>
       )}
