@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Users, 
   Search, 
@@ -8,12 +8,12 @@ import {
   Edit3, 
   Trash2, 
   RotateCcw, 
-  Sparkles, 
+
   Zap, 
   Flame, 
   Trophy, 
-  CheckCircle2, 
-  AlertCircle,
+
+
   RefreshCw,
   X,
   Save,
@@ -22,7 +22,7 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import { ScholarAvatar } from "@/components/SleekIcon";
 import { sound } from "@/lib/audio";
-import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+
 
 export interface StudentProfile {
   id: string;
@@ -57,7 +57,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch users from Supabase
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -66,7 +66,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
         .order("xp", { ascending: false });
 
       if (!error && data) {
-        const mapped: StudentProfile[] = data.map((d: any) => ({
+        const mapped: StudentProfile[] = data.map((d: Partial<StudentProfile> & { id: string; completed_stages_list?: unknown[] }) => ({
           id: d.id,
           player_name: d.player_name || "Scholar",
           player_avatar: d.player_avatar || "🧠",
@@ -86,16 +86,17 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       } else if (error) {
         onNotify(`Notice: Supabase profiles: ${error.message}`, "error");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Profiles fetch error:", err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [onNotify]);
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    const timer = setTimeout(() => { void fetchStudents(); }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchStudents]);
 
   // Filter & Sort
   const filteredStudents = useMemo(() => {
@@ -199,12 +200,12 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       if (!error) {
         sound.playUnlock();
         onNotify(`Reset progress for ${student.player_name}.`);
-        fetchStudents();
+        void fetchStudents();
       } else {
         onNotify(`Failed to reset: ${error.message}`, "error");
       }
-    } catch (err: any) {
-      onNotify(`Error: ${err.message}`, "error");
+    } catch (err: unknown) {
+      onNotify(`Error: ${err instanceof Error ? err.message : String(err)}`, "error");
     }
   };
 
@@ -224,12 +225,12 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
       if (!error) {
         sound.playUnlock();
         onNotify(`Deleted scholar profile for ${student.player_name}.`);
-        fetchStudents();
+        void fetchStudents();
       } else {
         onNotify(`Delete failed: ${error.message}`, "error");
       }
-    } catch (err: any) {
-      onNotify(`Error: ${err.message}`, "error");
+    } catch (err: unknown) {
+      onNotify(`Error: ${err instanceof Error ? err.message : String(err)}`, "error");
     }
   };
 
@@ -257,12 +258,12 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
         sound.playUnlock();
         onNotify(`Successfully updated profile for ${editingStudent.player_name}!`);
         setEditingStudent(null);
-        fetchStudents();
+        void fetchStudents();
       } else {
         onNotify(`Update failed: ${error.message}`, "error");
       }
-    } catch (err: any) {
-      onNotify(`Update error: ${err.message}`, "error");
+    } catch (err: unknown) {
+      onNotify(`Update error: ${err instanceof Error ? err.message : String(err)}`, "error");
     } finally {
       setIsUpdating(false);
     }
@@ -348,7 +349,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => setSortBy(e.target.value as "xp" | "streak" | "accuracy" | "quizzes")}
             className="px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.03] text-xs font-medium text-neutral-700 dark:text-neutral-300"
           >
             <option value="xp">Sort by Highest XP</option>

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+
 import { Navbar } from "@/components/Navbar";
 import { StageCard } from "@/components/StageCard";
 import { QuizModal } from "@/components/QuizModal";
@@ -17,8 +17,9 @@ import { SleekBadgeIcon } from "@/components/SleekIcon";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { supabase } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import { GradeType, Stage, SubjectType } from "@/types/curriculum";
-import { GRADE_SHORT_LABELS } from "@/data/constants";
+
 import { sound } from "@/lib/audio";
 
 const NUMBER_WORDS: Record<number, string> = {
@@ -80,7 +81,7 @@ export default function Home() {
   const {
     grade,
     completedStages,
-    unlockedStages,
+
     bestScores,
     subjectProgress,
     settings,
@@ -98,7 +99,7 @@ export default function Home() {
 
   // Listen for Supabase Auth state changes (e.g. Email confirmation or session restore)
   useEffect(() => {
-    const syncUser = async (user: any) => {
+    const syncUser = async (user: User) => {
       const meta = user.user_metadata || {};
       
       // Fetch user's saved progress from Supabase profiles
@@ -106,7 +107,7 @@ export default function Home() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
         loadCloudProfile({
@@ -119,7 +120,7 @@ export default function Home() {
           longestStreak: profile.longest_streak || 0,
           completedStages: profile.completed_stages_list || [],
           unlockedStages: profile.subject_progress
-            ? Object.values(profile.subject_progress as Record<string, any>).flatMap((s: any) => s.unlockedStages || [])
+            ? Object.values(profile.subject_progress as Record<string, { unlockedStages?: number[] }>).flatMap((s) => s.unlockedStages || [])
             : [1, 7, 13, 19],
           subjectProgress: profile.subject_progress || undefined,
           unlockedAchievements: profile.unlocked_achievements || [],
@@ -128,7 +129,16 @@ export default function Home() {
           totalQuestionsCorrect: profile.questions_correct || 0,
         });
       } else {
-        setProfile(meta.name || "Scholar", meta.avatar || "🧠", (meta.grade as GradeType) || "grade_9");
+        const fallbackName = meta.name || "Scholar";
+        const fallbackAvatar = meta.avatar || "🧠";
+        const fallbackGrade = (meta.grade as GradeType) || "grade_9";
+        loadCloudProfile({
+          id: user.id,
+          name: fallbackName,
+          avatar: fallbackAvatar,
+          grade: fallbackGrade,
+        });
+        setProfile(fallbackName, fallbackAvatar, fallbackGrade, false);
       }
       setViewMode("app");
     };
@@ -201,7 +211,7 @@ export default function Home() {
       }
     });
 
-    let chapters: ChapterGroup[] = Array.from(chaptersMap.entries()).map(([chapterName, info], defaultIdx) => {
+    const chapters: ChapterGroup[] = Array.from(chaptersMap.entries()).map(([chapterName, info], defaultIdx) => {
       const chapterIndex = info.assignedNumber !== undefined && info.assignedNumber > 0 ? info.assignedNumber : defaultIdx + 1;
       return {
         chapterIndex,

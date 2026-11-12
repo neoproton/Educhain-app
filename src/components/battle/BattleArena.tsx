@@ -48,6 +48,7 @@ export const BattleArena: React.FC = () => {
         useMultiplayerStore.setState({ questionTimeRemaining: nextRemaining });
       } else {
         // Time expired! Auto submit wrong answer if not submitted
+        useMultiplayerStore.setState({ questionTimeRemaining: 0 });
         if (!state.isAnswerSubmitted) {
           sound.playTimeUp();
           state.submitAnswer(-1);
@@ -63,8 +64,10 @@ export const BattleArena: React.FC = () => {
   const currentQ = currentRoom.questions[currentQuestionIndex];
   const totalQuestions = currentRoom.questions.length;
 
-  // Find opponent in 1v1 duel
-  const opponent = Object.values(players).find((p) => p.id !== localPlayerId);
+  // Find top opponent (supports both 1v1 duels and Party Mode)
+  const opponent = Object.values(players)
+    .filter((p) => p.id !== localPlayerId)
+    .sort((a, b) => b.score - a.score)[0];
 
   // If countdown overlay is active
   if (gameStatus === "countdown") {

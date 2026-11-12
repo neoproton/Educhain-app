@@ -5,8 +5,6 @@ import {
   X, 
   Swords, 
   Users, 
-  Clock, 
-  Sparkles, 
   Globe, 
   Lock,
   ChevronRight
@@ -18,6 +16,11 @@ import { getIconGlyph } from "@/components/SleekIcon";
 import { RoomMode } from "@/types/multiplayer";
 import { sound } from "@/lib/audio";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+
+const createLocalHostId = () =>
+  typeof window !== "undefined" && window.crypto?.randomUUID
+    ? window.crypto.randomUUID()
+    : `player_${Date.now()}`;
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -73,7 +76,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     setIsSubmitting(true);
     sound.playClick();
 
-    const hostId = localPlayerId || (typeof window !== "undefined" && window.crypto?.randomUUID ? window.crypto.randomUUID() : `player_${Date.now()}`);
+    const hostId = localPlayerId || createLocalHostId();
 
     const res = await createRoom({
       roomName: roomName.trim() || "Multiplayer Showdown",

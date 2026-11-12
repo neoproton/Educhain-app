@@ -44,7 +44,7 @@ function EditClassForm({
   schoolClass: SchoolClass;
   onClose: () => void;
   onSaved: (name: string) => void;
-  updateClass: any;
+  updateClass: (id: string, updates: Partial<SchoolClass>) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [name, setName] = useState(schoolClass.name || "");
   const [icon, setIcon] = useState(schoolClass.icon || "🎓");

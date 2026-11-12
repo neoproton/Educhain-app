@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { SleekIcon } from "@/components/SleekIcon";
-import { X, Save, Layers, Sparkles } from "lucide-react";
+import { X, Save, Layers } from "lucide-react";
 import { CustomSubject, useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
@@ -48,7 +48,7 @@ function EditSubjectForm({
   subject: CustomSubject;
   onClose: () => void;
   onSaved: (name: string) => void;
-  updateSubject: any;
+  updateSubject: (id: string, updates: Partial<CustomSubject>) => Promise<{ success: boolean; error?: string }>;
 }) {
   const { getAllClasses } = useCurriculumStore();
   const classes = getAllClasses();

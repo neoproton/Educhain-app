@@ -8,12 +8,12 @@ import {
   Plus, 
   Trash2, 
   BookOpen, 
-  Layers, 
-  Sparkles, 
-  Check, 
+
+
+
   AlertCircle 
 } from "lucide-react";
-import { Stage, Question } from "@/types/curriculum";
+import { Stage, Question, SubjectType, GradeType, SchoolClass } from "@/types/curriculum";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
@@ -62,9 +62,9 @@ function EditStageForm({
   stage: Stage;
   onClose: () => void;
   onSaved: (title: string, warning?: string) => void;
-  allSubjects: any[];
-  allClasses: any[];
-  updateStage: any;
+  allSubjects: Array<{ id: string; name: string; grade?: string; icon?: string }>;
+  allClasses: SchoolClass[];
+  updateStage: (id: string | number, updates: Partial<Stage>) => Promise<{ success: boolean; cloudSynced?: boolean; error?: string }>;
 }) {
   const [title, setTitle] = useState(stage.title || "");
   const [chapter, setChapter] = useState(stage.chapter || "");
@@ -74,7 +74,7 @@ function EditStageForm({
   const [grade, setGrade] = useState<string>(stage.grade || "grade_9");
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">(stage.difficulty || "Medium");
   const [xpReward, setXpReward] = useState<number>(stage.xpReward || 100);
-  const [learningObjective, setLearningObjective] = useState(stage.learningObjective || "");
+  const [learningObjective] = useState(stage.learningObjective || "");
   const [questions, setQuestions] = useState<Question[]>(
     Array.isArray(stage.questions) ? JSON.parse(JSON.stringify(stage.questions)) : []
   );
@@ -168,9 +168,9 @@ function EditStageForm({
       chapter: chapter.trim(),
       chapterNumber: chapterNumber !== "" ? Number(chapterNumber) : undefined,
       topic: finalTopic,
-      subject: subject as any,
+      subject: subject as SubjectType,
       subjectName: selectedSub?.name || subject,
-      grade: grade as any,
+      grade: grade as GradeType,
       difficulty,
       xpReward: Number(xpReward) || 100,
       learningObjective: learningObjective.trim(),
@@ -359,7 +359,7 @@ function EditStageForm({
                 </label>
                 <select
                   value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value as any)}
+                  onChange={(e) => setDifficulty(e.target.value as "Easy" | "Medium" | "Hard")}
                   className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black text-xs"
                 >
                   <option value="Easy">Easy</option>

@@ -2,13 +2,9 @@
 
 import React, { useState } from "react";
 import { 
-  Swords, 
-  Users, 
   Copy, 
   Check, 
   ArrowLeft, 
-  Clock, 
-  Sparkles, 
   CheckCircle2, 
   Circle,
   Crown,

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCurriculumStore, CustomSubject } from "@/store/useCurriculumStore";
-import { Question, Stage, SubjectType, SchoolClass } from "@/types/curriculum";
+import { Question, Stage, SubjectType, SchoolClass, GradeType } from "@/types/curriculum";
 import { sound } from "@/lib/audio";
 import { supabase } from "@/lib/supabase/client";
 import { EditStageModal } from "@/components/admin/EditStageModal";
@@ -12,6 +12,7 @@ import { EditSubjectModal } from "@/components/admin/EditSubjectModal";
 import { EditClassModal } from "@/components/admin/EditClassModal";
 import { UsersManager } from "@/components/admin/UsersManager";
 import { ProgressionLevelsEditor } from "@/components/admin/ProgressionLevelsEditor";
+import { RoomsManager } from "@/components/admin/RoomsManager";
 import { 
   Plus, 
   Trash2, 
@@ -53,7 +54,8 @@ import {
   Hash,
   KeyRound,
   X,
-  Award
+  Award,
+  Swords
 } from "lucide-react";
 import { SleekIcon, SleekBadgeIcon } from "@/components/SleekIcon";
 
@@ -319,6 +321,8 @@ NOTIFY pgrst, 'reload schema';
 -- ON CONFLICT (user_id) DO NOTHING;
 `;
 
+const makeCustomId = (prefix: string) => `${prefix}_${Date.now()}`;
+
 export default function AdminPage() {
   const { 
     customClasses,
@@ -356,7 +360,7 @@ export default function AdminPage() {
     checkCloudAdminStatus
   } = useCurriculumStore();
 
-  type AdminTabId = "csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "levels" | "users" | "sql";
+  type AdminTabId = "csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "levels" | "users" | "rooms" | "sql";
   const [activeTab, setActiveTab] = useState<AdminTabId>("csv");
   
   // Chapter Ordering Management State
@@ -399,7 +403,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const isAuth = sessionStorage.getItem("educhain_admin_auth") === "true";
-      setIsAuthenticated(isAuth);
+      const timer = setTimeout(() => setIsAuthenticated(isAuth), 0);
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -781,11 +786,11 @@ export default function AdminPage() {
     }));
 
     const newStage: Stage = {
-      id: `custom_stage_${Date.now()}`,
+      id: makeCustomId("custom_stage"),
       subject: csvSubjectId as SubjectType,
       subjectName: selectedSubjectObj.name,
       subjectStageNumber: customStages.filter((s) => s.subject === csvSubjectId).length + 1,
-      grade: csvGrade as any,
+      grade: csvGrade as GradeType,
       chapter: csvChapter.trim(),
       chapterNumber: csvChapterNumber !== "" ? Number(csvChapterNumber) : undefined,
       topic: finalTopic,
@@ -839,12 +844,12 @@ export default function AdminPage() {
     setQuestions(questions.filter((_, i) => i !== idx));
   };
 
-  const handleQuestionChange = (idx: number, field: string, value: any) => {
+  const handleQuestionChange = (idx: number, field: string, value: string | number) => {
     const updated = [...questions];
-    if (field === "question") updated[idx].question = value;
+    if (field === "question") updated[idx].question = String(value);
     if (field === "correctIndex") updated[idx].correctIndex = Number(value);
-    if (field === "explanation") updated[idx].explanation = value;
-    if (field === "tags") updated[idx].tags = value;
+    if (field === "explanation") updated[idx].explanation = String(value);
+    if (field === "tags") updated[idx].tags = String(value);
     setQuestions(updated);
   };
 
@@ -891,11 +896,11 @@ export default function AdminPage() {
     }));
 
     const newStage: Stage = {
-      id: `custom_stage_${Date.now()}`,
+      id: makeCustomId("custom_stage"),
       subject: subjectId as SubjectType,
       subjectName: selectedSubjectObj.name,
       subjectStageNumber: customStages.filter((s) => s.subject === subjectId).length + 1,
-      grade: grade as any,
+      grade: grade as GradeType,
       chapter: chapter.trim(),
       chapterNumber: manualChapterNumber !== "" ? Number(manualChapterNumber) : undefined,
       topic: finalTopic,
@@ -1266,7 +1271,7 @@ export default function AdminPage() {
           aria-label="Admin sections"
           className="mb-6 p-1 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-neutral-100/85 dark:bg-[#141f31] shadow-xs"
         >
-          <div className="grid grid-cols-3 lg:grid-cols-9 gap-1" role="tablist">
+          <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-1" role="tablist">
             {(
               [
                 { id: "csv", label: "CSV Import", icon: FileSpreadsheet },
@@ -1277,6 +1282,7 @@ export default function AdminPage() {
                 { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap },
                 { id: "levels", label: "XP & Streak", icon: Award },
                 { id: "users", label: "Scholars", icon: Users },
+                { id: "rooms", label: "Public Rooms", icon: Swords },
                 { id: "sql", label: "Cloud SQL", icon: Database },
               ] as const
             ).map((tab) => {
@@ -1293,7 +1299,7 @@ export default function AdminPage() {
                     setActiveTab(tab.id);
                   }}
                   className={`h-9 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                    tab.id === "sql" ? "col-span-2 sm:col-span-1" : ""
+                    ""
                   } ${
                     isActive
                       ? "bg-white dark:bg-[#223149] text-neutral-900 dark:text-white font-semibold shadow-sm ring-1 ring-neutral-900/5 dark:ring-white/10"
@@ -1514,7 +1520,7 @@ export default function AdminPage() {
                   </label>
                   <select
                     value={csvDifficulty}
-                    onChange={(e) => setCsvDifficulty(e.target.value as any)}
+                    onChange={(e) => setCsvDifficulty(e.target.value as "Easy" | "Medium" | "Hard")}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   >
                     <option value="Easy">Easy</option>
@@ -1848,7 +1854,7 @@ export default function AdminPage() {
                   </label>
                   <select
                     value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value as any)}
+                    onChange={(e) => setDifficulty(e.target.value as "Easy" | "Medium" | "Hard")}
                     className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] text-xs focus:outline-none"
                   >
                     <option value="Easy">Easy</option>
@@ -3145,6 +3151,10 @@ export default function AdminPage() {
 
         {activeTab === "users" && (
           <UsersManager onNotify={showNotification} />
+        )}
+
+        {activeTab === "rooms" && (
+          <RoomsManager onNotify={showNotification} />
         )}
 
         {/* ======================================================== */}

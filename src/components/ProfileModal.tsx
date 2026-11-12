@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { GradeType } from "@/types/curriculum";
-import { GRADE_LABELS } from "@/data/constants";
 import { getXpProgress } from "@/lib/progression";
 import { sound } from "@/lib/audio";
 import { supabase } from "@/lib/supabase/client";
@@ -14,42 +13,19 @@ import {
   X, 
   Check, 
   RotateCcw, 
-  User, 
   LogOut, 
   LogIn, 
   ShieldCheck, 
   Mail, 
-  Sparkles,
-  Zap,
-  Shield,
-  Crown,
-  Terminal,
-  Atom,
-  Compass,
-  Calculator,
-  Languages,
-  Award
+  Zap
 } from "lucide-react";
-import { ScholarAvatar, SleekIcon } from "@/components/SleekIcon";
+import { ScholarAvatar, SCHOLAR_INSIGNIAS, SleekIcon, resolveScholarInsigniaId } from "@/components/SleekIcon";
 
 interface ProfileModalProps {
   onClose: () => void;
   onSignOut?: () => void;
   onOpenAuth?: (mode?: "signin" | "signup") => void;
 }
-
-const AVATAR_GLYPHS = [
-  { id: "sparkles", label: "Sparkles", icon: Sparkles },
-  { id: "zap", label: "Energy", icon: Zap },
-  { id: "shield", label: "Guardian", icon: Shield },
-  { id: "crown", label: "Monarch", icon: Crown },
-  { id: "terminal", label: "Coder", icon: Terminal },
-  { id: "atom", label: "Scientist", icon: Atom },
-  { id: "compass", label: "Explorer", icon: Compass },
-  { id: "calculator", label: "Analyst", icon: Calculator },
-  { id: "languages", label: "Linguist", icon: Languages },
-  { id: "award", label: "Scholar", icon: Award },
-];
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ 
   onClose,
@@ -64,7 +40,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const allClasses = getAllClasses();
   const xpLevels = getXpLevels();
   const [tempName, setTempName] = useState(name || "Scholar");
-  const [tempAvatar, setTempAvatar] = useState(avatar || "🧠");
+  const [tempAvatar, setTempAvatar] = useState(() => resolveScholarInsigniaId(avatar) || avatar || "sparkles");
   const [tempGrade, setTempGrade] = useState<GradeType>(grade || "grade_9");
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -220,9 +196,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <label className="block text-xs font-mono text-neutral-500 dark:text-neutral-400 uppercase mb-1.5 font-semibold">
               Select Scholar Insignia
             </label>
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {AVATAR_GLYPHS.map((item) => {
-                const Icon = item.icon;
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2">
+              {SCHOLAR_INSIGNIAS.map((item) => {
                 const isSelected = tempAvatar === item.id;
                 return (
                   <button
@@ -230,14 +205,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     type="button"
                     onClick={() => { setTempAvatar(item.id); sound.playClick(); }}
                     title={item.label}
-                    className={`h-12 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer min-w-0 ${
+                    className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all border cursor-pointer min-w-0 ${
                       isSelected
-                        ? "bg-gradient-to-tr from-blue-600 to-cyan-500 text-white border-transparent shadow-[0_0_12px_rgba(37,99,235,0.35)] scale-105"
+                        ? "border-blue-500 dark:border-cyan-400 bg-blue-500/10 dark:bg-cyan-500/15 ring-2 ring-blue-500/25 dark:ring-cyan-400/25 shadow-sm scale-[1.03]"
                         : "bg-neutral-50 dark:bg-[#101827] border-neutral-200 dark:border-white/10 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:border-blue-500/30"
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="text-[8px] sm:text-[9px] font-mono leading-none truncate w-full text-center">{item.label}</span>
+                    <ScholarAvatar name={item.label} avatar={item.id} size="sm" />
+                    <span className={`text-[8px] sm:text-[9px] font-mono leading-none truncate w-full text-center ${
+                      isSelected ? "font-bold text-blue-700 dark:text-cyan-300" : ""
+                    }`}>
+                      {item.label}
+                    </span>
                   </button>
                 );
               })}

@@ -104,7 +104,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="text-[11px] sm:text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 px-2 sm:px-3 py-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <LogOut className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden xs:inline sm:inline">Sign Out</span>
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
             ) : (
               <button

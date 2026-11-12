@@ -51,22 +51,25 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
   const [missedList, setMissedList] = useState<Question[]>([]);
   const [topLeaderboardsReached, setTopLeaderboardsReached] = useState<string[]>([]);
 
-  // Reset all state when stage changes
+  // Reset all state asynchronously when stage changes (parent also keys by stage.id)
   useEffect(() => {
-    setCurrentIdx(0);
-    setSelectedOption(null);
-    setIsAnswered(false);
-    setTimeLeft(QUESTION_TIMER_SECONDS);
-    setScore(0);
-    setFastAnswersCount(0);
-    setAnswerCombo(0);
-    setBestCombo(0);
-    setIsFinished(false);
-    setMissedList([]);
-    setTopLeaderboardsReached([]);
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: 0, behavior: "instant" });
-    }
+    const timer = setTimeout(() => {
+      setCurrentIdx(0);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setTimeLeft(QUESTION_TIMER_SECONDS);
+      setScore(0);
+      setFastAnswersCount(0);
+      setAnswerCombo(0);
+      setBestCombo(0);
+      setIsFinished(false);
+      setMissedList([]);
+      setTopLeaderboardsReached([]);
+      if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTo({ top: 0, behavior: "instant" });
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [stage.id]);
 
   const questions = stage.questions || [];
@@ -202,11 +205,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
       if (timeLeft >= 15) {
         setFastAnswersCount((c) => c + 1);
       }
-      setAnswerCombo((prev) => {
-        const next = prev + 1;
-        setBestCombo((b) => Math.max(b, next));
-        return next;
-      });
+      const nextCombo = answerCombo + 1;
+      setAnswerCombo(nextCombo);
+      setBestCombo((b) => Math.max(b, nextCombo));
     } else {
       sound.playIncorrect();
       setAnswerCombo(0);
@@ -222,32 +223,31 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
         });
       }
     }, 120);
-  }, [isAnswered, currentQ, timeLeft]);
+  }, [isAnswered, currentQ, timeLeft, answerCombo]);
 
-  // Countdown Timer
+  // Countdown Timer (single timeout step per second avoids StrictMode double-updater side effects)
   useEffect(() => {
-    if (!hasQuestions || isAnswered || isFinished || !currentQ) return;
+    if (!hasQuestions || isAnswered || isFinished || !currentQ || timeLeft <= 0) return;
 
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          sound.playTimeUp();
-          setIsAnswered(true);
-          setSelectedOption(null); // Time out
-          setAnswerCombo(0);
-          setMissedList((m) => [...m, currentQ]);
-          return 0;
-        }
-        if (prev <= 5) {
+    const timer = setTimeout(() => {
+      if (timeLeft <= 1) {
+        setTimeLeft(0);
+        sound.playTimeUp();
+        setIsAnswered(true);
+        setSelectedOption(null); // Time out
+        setAnswerCombo(0);
+        setMissedList((m) => [...m, currentQ]);
+      } else {
+        const next = timeLeft - 1;
+        if (next <= 4) {
           sound.playTick();
         }
-        return prev - 1;
-      });
+        setTimeLeft(next);
+      }
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [hasQuestions, isAnswered, isFinished, currentQ]);
+    return () => clearTimeout(timer);
+  }, [hasQuestions, isAnswered, isFinished, currentQ, timeLeft]);
 
   const handleNextQuestion = useCallback(() => {
     sound.playClick();

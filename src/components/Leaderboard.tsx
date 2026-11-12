@@ -153,7 +153,7 @@ export const Leaderboard: React.FC = () => {
   }, [isGuest, name]);
 
   useEffect(() => {
-    fetchProfiles();
+    const timer = setTimeout(() => { void fetchProfiles(); }, 0);
 
     // Set up Realtime subscription for instant live updates
     const channel = supabase
@@ -170,6 +170,7 @@ export const Leaderboard: React.FC = () => {
       });
 
     return () => {
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchProfiles]);
@@ -350,7 +351,7 @@ export const Leaderboard: React.FC = () => {
       )}
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className="p-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-xs shrink-0">
@@ -390,7 +391,7 @@ export const Leaderboard: React.FC = () => {
         </div>
 
         {/* Controls: Refresh & Category Tabs */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full lg:w-auto shrink-0">
           {/* Refresh Button */}
           <button
             onClick={() => {

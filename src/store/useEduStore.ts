@@ -137,25 +137,15 @@ export const useEduStore = create<EduStoreState>()(
 
       setProfile: (name, avatar, grade, isGuest = false) => {
         set({ name, avatar, grade, isGuest });
-        const id = get().id;
-        if (id) {
-          supabase
-            .from("profiles")
-            .update({ 
-              player_name: name, 
-              player_avatar: avatar, 
-              player_grade: grade 
-            })
-            .eq("id", id)
-            .then();
+        if (!isGuest) {
+          syncEduProfileToCloud(get);
         }
       },
 
       setGrade: (grade) => {
         set({ grade });
-        const id = get().id;
-        if (id) {
-          supabase.from("profiles").update({ player_grade: grade }).eq("id", id).then();
+        if (!get().isGuest) {
+          syncEduProfileToCloud(get);
         }
       },
 

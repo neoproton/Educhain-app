@@ -1,7 +1,7 @@
-import { Question, SubjectType } from "./curriculum";
+import { Question } from "./curriculum";
 
 export type RoomMode = "duel" | "party";
-export type RoomStatus = "waiting" | "starting" | "playing" | "finished";
+export type RoomStatus = "waiting" | "starting" | "playing" | "finished" | "closed";
 
 export interface MultiplayerRoom {
   id: string;                         // Unique room code e.g. "EDU-784"

@@ -5,7 +5,7 @@ import { Stage } from "@/types/curriculum";
 import { getSubjectMeta } from "@/data/constants";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
-import { Lock, CheckCircle2, Play, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Lock, CheckCircle2, Play, ChevronUp, Info } from "lucide-react";
 
 interface StageCardProps {
   stage: Stage;

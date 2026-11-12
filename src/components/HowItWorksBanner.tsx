@@ -10,7 +10,8 @@ export const HowItWorksBanner: React.FC = () => {
   useEffect(() => {
     const dismissed = localStorage.getItem("educhain_how_it_works_dismissed");
     if (!dismissed) {
-      setIsDismissed(false);
+      const timer = setTimeout(() => setIsDismissed(false), 0);
+      return () => clearTimeout(timer);
     }
   }, []);
 

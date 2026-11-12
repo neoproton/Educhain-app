@@ -6,10 +6,10 @@ import { supabase } from "@/lib/supabase/client";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { GradeType } from "@/types/curriculum";
-import { GRADE_LABELS } from "@/data/constants";
 import { sound } from "@/lib/audio";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { X, Lock, Mail, User, Sparkles, ArrowRight, CheckCircle2, AlertCircle, MailCheck } from "lucide-react";
+import { ScholarAvatar, SCHOLAR_INSIGNIAS } from "@/components/SleekIcon";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ interface AuthModalProps {
   onSuccess?: () => void;
 }
 
-const AVATARS = ["🧠", "🦉", "🚀", "⚡", "🧬", "🧙‍♂️", "🎨", "🤖", "🛡️", "💎"];
+const SIGNUP_INSIGNIAS = SCHOLAR_INSIGNIAS.slice(0, 6);
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -34,7 +34,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<GradeType>("grade_9");
-  const [avatar, setAvatar] = useState("🧠");
+  const [avatar, setAvatar] = useState("brain");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -45,12 +45,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const allClasses = getAllClasses();
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
       setMode(defaultMode);
       setErrorMsg(null);
       setSuccessMsg(null);
       setPendingConfirmationEmail(null);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [isOpen, defaultMode]);
 
   if (!isOpen) return null;
@@ -440,21 +442,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block text-xs font-mono uppercase text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">
-                  Avatar
+                  Scholar Insignia
                 </label>
-                <div className="flex items-center gap-1 overflow-x-auto py-1">
-                  {AVATARS.slice(0, 5).map((av) => (
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+                  {SIGNUP_INSIGNIAS.map((ins) => (
                     <button
-                      key={av}
+                      key={ins.id}
                       type="button"
-                      onClick={() => setAvatar(av)}
-                      className={`w-8 h-8 rounded-xl text-base flex items-center justify-center transition-all cursor-pointer ${
-                        avatar === av
-                          ? "bg-gradient-to-tr from-blue-600 to-cyan-400 text-white shadow-md scale-105"
-                          : "bg-neutral-100 dark:bg-[#223149] text-neutral-700 dark:text-neutral-300 hover:scale-105"
+                      onClick={() => setAvatar(ins.id)}
+                      title={ins.label}
+                      className={`p-1 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                        avatar === ins.id
+                          ? "border-blue-500 dark:border-cyan-400 bg-blue-500/10 dark:bg-cyan-500/15 ring-2 ring-blue-500/25 shadow-sm scale-105"
+                          : "border-transparent bg-neutral-100/80 dark:bg-[#223149]/80 hover:scale-105"
                       }`}
                     >
-                      {av}
+                      <ScholarAvatar name={ins.label} avatar={ins.id} size="sm" />
                     </button>
                   ))}
                 </div>

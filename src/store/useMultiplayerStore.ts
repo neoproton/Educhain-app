@@ -265,6 +265,10 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
       return { success: false, error: "This battle is already in progress!" };
     }
 
+    if (roomData.status === "closed" || roomData.status === "finished") {
+      return { success: false, error: "This room has been closed by the host or admin." };
+    }
+
     set({
       currentRoom: roomData,
       isHost: roomData.hostId === get().localPlayerId,
@@ -305,6 +309,11 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
     const { activeChannel, isHost } = get();
     if (!isHost || !activeChannel) return;
 
+    const currentRoom = get().currentRoom;
+    if (currentRoom?.id) {
+      supabase.from("multiplayer_rooms").update({ status: "playing" }).eq("id", currentRoom.id).then();
+    }
+
     sound.playUnlock();
     // Broadcast countdown start to all players in the room
     activeChannel.send({
@@ -338,8 +347,8 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
 
     const isCorrect = optionIndex === currentQ.correctIndex;
     let earnedPoints = 0;
-    let newStreak = isCorrect ? myStreak + 1 : 0;
-    let newHealth = isCorrect ? myHealth : Math.max(0, myHealth - 25);
+    const newStreak = isCorrect ? myStreak + 1 : 0;
+    const newHealth = isCorrect ? myHealth : Math.max(0, myHealth - 25);
 
     if (isCorrect) {
       sound.playCorrect();
@@ -405,6 +414,9 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
       });
     } else {
       // Game finished!
+      if (isHost && currentRoom.id) {
+        supabase.from("multiplayer_rooms").update({ status: "finished" }).eq("id", currentRoom.id).then();
+      }
       if (isHost && activeChannel) {
         activeChannel.send({
           type: "broadcast",
@@ -421,7 +433,10 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
       clearInterval(countdownIntervalRef);
       countdownIntervalRef = null;
     }
-    const { activeChannel } = get();
+    const { activeChannel, isHost, currentRoom, gameStatus } = get();
+    if (isHost && currentRoom?.id && gameStatus === "lobby") {
+      supabase.from("multiplayer_rooms").update({ status: "closed" }).eq("id", currentRoom.id).then();
+    }
     if (activeChannel) {
       activeChannel.untrack();
       supabase.removeChannel(activeChannel);
@@ -455,23 +470,23 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
         .limit(10);
 
       if (!error && data) {
-        return data.map((d: any) => ({
-          id: d.id,
-          roomCode: d.room_code,
-          roomName: d.room_name,
-          hostId: d.host_id,
-          hostName: d.host_name,
-          hostAvatar: d.host_avatar || "👑",
+        return data.map((d: Record<string, unknown>) => ({
+          id: String(d.id),
+          roomCode: String(d.room_code),
+          roomName: String(d.room_name),
+          hostId: String(d.host_id),
+          hostName: String(d.host_name),
+          hostAvatar: String(d.host_avatar || "👑"),
           mode: d.mode as RoomMode,
-          subjectId: d.subject_id,
-          subjectName: d.subject_name,
-          chapter: d.chapter,
-          questionCount: d.question_count,
-          timePerQuestion: d.time_per_question,
-          isPublic: d.is_public,
-          status: d.status,
-          questions: d.questions || [],
-          createdAt: d.created_at,
+          subjectId: String(d.subject_id),
+          subjectName: String(d.subject_name),
+          chapter: d.chapter ? String(d.chapter) : null,
+          questionCount: Number(d.question_count),
+          timePerQuestion: Number(d.time_per_question),
+          isPublic: Boolean(d.is_public),
+          status: d.status as MultiplayerRoom["status"],
+          questions: (Array.isArray(d.questions) ? d.questions : []) as MultiplayerRoom["questions"],
+          createdAt: String(d.created_at),
         }));
       }
     } catch (e) {
@@ -502,7 +517,7 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
       const updatedPlayers: Record<string, PlayerPresence> = {};
 
       Object.keys(state).forEach((key) => {
-        const presences = state[key] as any[];
+        const presences = state[key] as unknown as PlayerPresence[];
         if (presences && presences.length > 0) {
           const p = presences[0];
           updatedPlayers[p.id] = {
@@ -565,6 +580,7 @@ export const useMultiplayerStore = create<MultiplayerStoreState>((set, get) => (
 
     channel.on("broadcast", { event: "NEXT_QUESTION" }, ({ payload }) => {
       const nextIdx = payload.questionIndex;
+      if (typeof nextIdx !== "number" || nextIdx <= get().currentQuestionIndex) return;
       const room = get().currentRoom;
       set({
         currentQuestionIndex: nextIdx,

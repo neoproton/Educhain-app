@@ -5,7 +5,7 @@ import { Stage, SubjectType } from "@/types/curriculum";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
-import { Play, Sparkles, Compass } from "lucide-react";
+import { Play } from "lucide-react";
 import { SleekBadgeIcon } from "@/components/SleekIcon";
 
 interface NextQuestHeroProps {
