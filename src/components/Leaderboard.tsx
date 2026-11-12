@@ -317,7 +317,7 @@ export const Leaderboard: React.FC = () => {
       : 0;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300 relative">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 animate-in fade-in duration-300 relative">
 
       {/* Floating #1 Crown Cheer Toast */}
       {crownToast && (
@@ -439,17 +439,17 @@ export const Leaderboard: React.FC = () => {
 
       {/* #1 Leaderboard Champion Celebration Spotlight Banner */}
       {isUserNumberOne && (
-        <div className="mb-8 p-5 sm:p-6 rounded-3xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-400/10 to-cyan-500/15 dark:from-amber-500/20 dark:via-[#263B5B]/80 dark:to-cyan-500/15 shadow-[0_10px_35px_rgba(245,158,11,0.2)] flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
-          <div className="flex items-center gap-4 text-center sm:text-left flex-col sm:flex-row">
-            <div className="relative p-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.45)] shrink-0">
-              <Crown className="w-7 h-7 fill-slate-950/20 animate-bounce" />
+        <div className="mb-5 sm:mb-8 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-400/10 to-cyan-500/15 dark:from-amber-500/20 dark:via-[#263B5B]/80 dark:to-cyan-500/15 shadow-[0_10px_35px_rgba(245,158,11,0.2)] flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3 sm:gap-4 text-center sm:text-left flex-col sm:flex-row">
+            <div className="relative p-2.5 sm:p-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.45)] shrink-0">
+              <Crown className="w-6 h-6 sm:w-7 sm:h-7 fill-slate-950/20 animate-bounce" />
             </div>
             <div>
               <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-bold mb-1">
                 <PartyPopper className="w-3 h-3" />
                 <span>Rank #1 Champion Spotlight</span>
               </div>
-              <h2 className="font-heading text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+              <h2 className="font-heading text-base sm:text-xl font-extrabold text-slate-900 dark:text-white">
                 🎉 Cheers, {userScholar?.name}! You&apos;re #1 in {categoryMeta[activeCategory].label}!
               </h2>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
@@ -461,7 +461,7 @@ export const Leaderboard: React.FC = () => {
           <button
             type="button"
             onClick={fireCrownCheer}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md flex items-center gap-2 transition-all hover:scale-[1.03] active:scale-[0.98] cursor-pointer shrink-0"
+            className="px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md flex items-center gap-2 transition-all hover:scale-[1.03] active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Sparkles className="w-4 h-4" />
             <span>Encore Cheer!</span>
@@ -471,9 +471,9 @@ export const Leaderboard: React.FC = () => {
 
       {/* Motivational Gap-to-#1 Strip when climbing */}
       {!isUserNumberOne && userRank && userScholar && (
-        <div className="mb-8 p-4 rounded-2xl border border-blue-500/20 dark:border-[#263B5B] bg-gradient-to-r from-blue-500/[0.06] via-cyan-500/[0.05] to-transparent dark:from-[#182438] dark:to-[#223149]/50 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-extrabold bg-[#2563EB]/15 text-[#2563EB] dark:bg-[#22D3EE]/15 dark:text-[#22D3EE] border border-[#2563EB]/25 dark:border-[#22D3EE]/30">
+        <div className="mb-5 sm:mb-8 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-500/20 dark:border-[#263B5B] bg-gradient-to-r from-blue-500/[0.06] via-cyan-500/[0.05] to-transparent dark:from-[#182438] dark:to-[#223149]/50 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-mono font-extrabold bg-[#2563EB]/15 text-[#2563EB] dark:bg-[#22D3EE]/15 dark:text-[#22D3EE] border border-[#2563EB]/25 dark:border-[#22D3EE]/30 shrink-0">
               Your Rank: #{userRank}
             </span>
             <p className="text-xs text-slate-600 dark:text-slate-300">
@@ -486,14 +486,14 @@ export const Leaderboard: React.FC = () => {
               )}
             </p>
           </div>
-          <span className="text-[11px] font-mono font-semibold text-cyan-600 dark:text-cyan-400">
+          <span className="hidden sm:inline text-[11px] font-mono font-semibold text-cyan-600 dark:text-cyan-400">
             🚀 Keep chaining!
           </span>
         </div>
       )}
 
       {/* Podium Top 3 Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-5 sm:mb-8">
         {allScholars.slice(0, 3).map((scholar, idx) => {
           const medals = ["🥇", "🥈", "🥉"];
           const borderColors = [
@@ -505,34 +505,43 @@ export const Leaderboard: React.FC = () => {
           return (
             <div
               key={scholar.id}
-              className={`p-5 rounded-3xl border relative flex flex-col items-center text-center transition-all card-lift ${borderColors[idx]} ${
+              className={`px-3.5 py-2.5 sm:p-5 rounded-2xl sm:rounded-3xl border relative flex flex-row sm:flex-col items-center justify-between sm:justify-start gap-2.5 sm:gap-0 text-left sm:text-center transition-all card-lift ${borderColors[idx]} ${
+                idx === 0 ? "mt-2 sm:mt-0" : ""
+              } ${
                 scholar.isCurrentUser ? "ring-2 ring-[#2563EB] dark:ring-[#22D3EE] shadow-[0_0_20px_rgba(34,211,238,0.3)]" : ""
               }`}
             >
               {idx === 0 && (
-                <div className="absolute -top-3 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 text-[10px] font-mono font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1">
-                  <Crown className="w-3 h-3 fill-slate-950/20" />
+                <div className="absolute -top-2.5 left-3.5 sm:left-1/2 sm:-translate-x-1/2 sm:-top-3 px-2 sm:px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 text-[9px] sm:text-[10px] font-mono font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1 whitespace-nowrap">
+                  <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-slate-950/20" />
                   <span>#1 Crown Holder</span>
                 </div>
               )}
-              <div className="text-3xl mb-1.5 mt-1">{medals[idx]}</div>
-              <div className="mb-2 relative">
-                <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="xl" />
-              </div>
-              <div className="text-sm font-bold font-heading text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span className="truncate max-w-[140px]">{scholar.name}</span>
-                {scholar.isCurrentUser && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40">
-                    You
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] mt-0.5">
-                {scholar.rank} • {scholar.quizzes} Quizzes
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:contents">
+                <div className="text-xl sm:text-3xl shrink-0 sm:mb-1.5 sm:mt-1">{medals[idx]}</div>
+                <div className="sm:hidden shrink-0">
+                  <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="md" />
+                </div>
+                <div className="hidden sm:block mb-2 relative">
+                  <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="xl" />
+                </div>
+                <div className="min-w-0 flex-1 sm:w-full sm:flex sm:flex-col sm:items-center">
+                  <div className="text-xs sm:text-sm font-bold font-heading text-slate-900 dark:text-white flex items-center sm:justify-center gap-1.5 min-w-0">
+                    <span className="truncate sm:max-w-[140px]">{scholar.name}</span>
+                    {scholar.isCurrentUser && (
+                      <span className="text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40 shrink-0">
+                        You
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] mt-0.5 truncate">
+                    {scholar.rank} • {scholar.quizzes} Quizzes
+                  </div>
+                </div>
               </div>
 
               {/* Dynamic Metric Value */}
-              <div className="mt-3.5 text-lg font-extrabold font-mono text-slate-900 dark:text-white">
+              <div className="shrink-0 sm:mt-3.5 text-sm sm:text-lg font-extrabold font-mono text-slate-900 dark:text-white whitespace-nowrap">
                 {activeCategory === "xp" && `${scholar.xp.toLocaleString()} XP`}
                 {activeCategory === "stages" && `${scholar.stages} Stages`}
                 {activeCategory === "streak" && `${scholar.streak} Days`}
@@ -544,18 +553,21 @@ export const Leaderboard: React.FC = () => {
       </div>
 
       {/* Leaderboard Table */}
-      <div className="border border-slate-200 dark:border-[#263B5B] rounded-3xl overflow-hidden bg-white dark:bg-[#182438] shadow-lg dark:shadow-[0_12px_40px_rgba(16,24,39,0.4)]">
+      <div className="border border-slate-200 dark:border-[#263B5B] rounded-2xl sm:rounded-3xl overflow-hidden bg-white dark:bg-[#182438] shadow-lg dark:shadow-[0_12px_40px_rgba(16,24,39,0.4)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 dark:border-[#263B5B]/80 bg-slate-50/80 dark:bg-[#141f30] text-slate-500 dark:text-[#94A3B8] font-mono font-bold">
               <tr>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 w-10 sm:w-12 text-center">#</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4">Scholar</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 whitespace-nowrap">Rank</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Stages</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Streak</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Accuracy</th>
-                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">XP</th>
+                <th className="py-2.5 px-2 sm:py-3.5 sm:px-4 w-9 sm:w-12 text-center">#</th>
+                <th className="py-2.5 px-2 sm:py-3.5 sm:px-4">Scholar</th>
+                <th className="hidden sm:table-cell py-3.5 px-4 whitespace-nowrap">Rank</th>
+                <th className={`${activeCategory === "stages" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right whitespace-nowrap`}>Stages</th>
+                <th className={`${activeCategory === "streak" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right whitespace-nowrap`}>Streak</th>
+                <th className={`${activeCategory === "xp" || activeCategory === "accuracy" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right whitespace-nowrap`}>
+                  <span className="sm:hidden">Acc</span>
+                  <span className="hidden sm:inline">Accuracy</span>
+                </th>
+                <th className="py-2.5 px-2 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">XP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#263B5B]/40">
@@ -568,30 +580,42 @@ export const Leaderboard: React.FC = () => {
                       : "hover:bg-slate-50/80 dark:hover:bg-[#1e2f47]"
                   }`}
                 >
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-center font-mono text-slate-400 dark:text-slate-500 font-bold whitespace-nowrap">
+                  <td className="py-2.5 px-2 sm:py-3.5 sm:px-4 text-center font-mono text-slate-400 dark:text-slate-500 font-bold whitespace-nowrap">
                     {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4">
+                  <td className="py-2.5 px-2 sm:py-3.5 sm:px-4">
                     <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                      <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="md" />
-                      <span className="text-slate-900 dark:text-white font-semibold truncate max-w-[120px] sm:max-w-none">{scholar.name}</span>
-                      {idx === 0 && (
-                        <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400/50 shrink-0" />
-                      )}
-                      {scholar.isCurrentUser && (
-                        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40 shrink-0">
-                          You
-                        </span>
-                      )}
+                      <span className="sm:hidden shrink-0">
+                        <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="sm" />
+                      </span>
+                      <span className="hidden sm:inline-flex shrink-0">
+                        <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="md" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-slate-900 dark:text-white font-semibold truncate max-w-[125px] sm:max-w-none">{scholar.name}</span>
+                          {idx === 0 && (
+                            <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400/50 shrink-0" />
+                          )}
+                          {scholar.isCurrentUser && (
+                            <span className="text-[9px] font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40 shrink-0">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400 dark:text-slate-400 sm:hidden truncate">
+                          {scholar.rank} • {scholar.stages} stg • {scholar.streak}d
+                        </div>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-slate-600 dark:text-[#94A3B8] font-mono whitespace-nowrap">
+                  <td className="hidden sm:table-cell py-3.5 px-4 text-slate-600 dark:text-[#94A3B8] font-mono whitespace-nowrap">
                     {scholar.rank}
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                  <td className={`${activeCategory === "stages" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap`}>
                     {scholar.stages}
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono text-orange-600 dark:text-orange-400 font-bold whitespace-nowrap">
+                  <td className={`${activeCategory === "streak" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right font-mono text-orange-600 dark:text-orange-400 font-bold whitespace-nowrap`}>
                     <div className="inline-flex items-center justify-end gap-1.5">
                       <span>{scholar.streak}d</span>
                       {(() => {
@@ -604,12 +628,12 @@ export const Leaderboard: React.FC = () => {
                       })()}
                     </div>
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono whitespace-nowrap">
+                  <td className={`${activeCategory === "xp" || activeCategory === "accuracy" ? "" : "hidden sm:table-cell"} py-2.5 px-2 sm:py-3.5 sm:px-4 text-right font-mono whitespace-nowrap`}>
                     <span className={scholar.accuracy >= 90 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-slate-700 dark:text-slate-300"}>
                       {scholar.accuracy}%
                     </span>
                   </td>
-                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                  <td className="py-2.5 px-2 sm:py-3.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                     {scholar.xp.toLocaleString()}
                   </td>
                 </tr>
