@@ -123,22 +123,22 @@ function BattleContent() {
     <div className="space-y-10 animate-in fade-in duration-300">
       
       {/* Hero Banner */}
-      <div className="p-8 sm:p-12 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-gradient-to-br dark:from-[#182438] dark:via-[#1e3250] dark:to-[#182438] shadow-xl dark:shadow-[0_15px_45px_rgba(16,24,39,0.5)] relative overflow-hidden card-lift">
+      <div className="p-5 sm:p-12 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-gradient-to-br dark:from-[#182438] dark:via-[#1e3250] dark:to-[#182438] shadow-xl dark:shadow-[0_15px_45px_rgba(16,24,39,0.5)] relative overflow-hidden card-lift">
         <div className="absolute top-0 right-0 w-96 h-96 glow-orb-cyan pointer-events-none -mr-20 -mt-20" />
         <div className="absolute bottom-0 left-0 w-80 h-80 glow-orb-blue pointer-events-none -ml-20 -mb-20" />
 
         <div className="relative z-10 max-w-2xl space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-11 h-11 rounded-2xl overflow-hidden border border-[#2563EB]/40 dark:border-[#22D3EE]/40 bg-[#101827] shadow-md shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-[#2563EB]/40 dark:border-[#22D3EE]/40 bg-[#101827] shadow-md shrink-0">
               <Image src="/logo.png" alt="EduChain Logo" fill sizes="44px" className="object-cover" priority />
             </div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs">
-              <Swords className="w-3.5 h-3.5 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs">
+              <Swords className="w-3.5 h-3.5 animate-pulse shrink-0" />
               <span>Real-Time Multiplayer Arena</span>
             </div>
           </div>
 
-          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+          <h1 className="font-heading text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
             Challenge Your Friends in Live Quiz Showdowns
           </h1>
 
@@ -146,13 +146,13 @@ function BattleContent() {
             Create custom battle rooms configured for any subject and chapter, or join live lobbies to test your speed, combos, and knowledge in head-to-head multiplayer.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3.5">
+          <div className="pt-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3.5">
             <button
               onClick={() => {
                 sound.playClick();
                 setIsCreateOpen(true);
               }}
-              className="btn-educhain-primary px-7 py-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg"
+              className="btn-educhain-primary px-6 sm:px-7 py-3 sm:py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg"
             >
               <Plus className="w-4 h-4" />
               <span>Create Custom Room</span>
@@ -160,7 +160,7 @@ function BattleContent() {
 
             <Link
               href="/"
-              className="btn-educhain-secondary px-6 py-3.5 rounded-2xl text-xs font-bold"
+              className="btn-educhain-secondary px-6 py-3 sm:py-3.5 rounded-2xl text-xs font-bold text-center"
             >
               <span>Back to Solo Quests</span>
             </Link>
@@ -176,7 +176,7 @@ function BattleContent() {
       )}
 
       {/* Join Room Box */}
-      <div className="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-sm card-lift">
+      <div className="p-4 sm:p-7 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-sm card-lift">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-heading text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -295,29 +295,29 @@ function BattleContent() {
 
 export default function BattlePage() {
   return (
-    <div className="min-h-screen educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
+    <div className="min-h-screen overflow-x-clip educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] font-sans selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
       
       {/* Top Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-[#223149]/70 bg-white/85 dark:bg-[#101827]/85 backdrop-blur-xl">
         <div className="h-[2px] w-full bg-gradient-to-r from-rose-500 via-[#22D3EE] to-[#2563EB]" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <Link 
               href="/"
-              className="p-2 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs"
+              className="p-2 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs shrink-0"
               title="Return to Solo Quests"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-heading font-extrabold text-base tracking-tight text-slate-900 dark:text-white">EduChain Arena</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold uppercase animate-pulse">
+                <span className="font-heading font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white truncate">EduChain Arena</span>
+                <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold uppercase animate-pulse shrink-0">
                   Multiplayer
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-[#94A3B8]">
+              <p className="hidden sm:block text-[11px] text-slate-500 dark:text-[#94A3B8]">
                 Synchronized Peer-to-Peer Quiz Battles
               </p>
             </div>
@@ -325,7 +325,7 @@ export default function BattlePage() {
 
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-colors shadow-xs shrink-0 whitespace-nowrap"
           >
             <span>Solo Quests</span>
           </Link>
@@ -333,7 +333,7 @@ export default function BattlePage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         <Suspense fallback={<div className="text-center py-20 text-xs text-slate-400 font-mono">Loading Battle Arena...</div>}>
           <BattleContent />
         </Suspense>

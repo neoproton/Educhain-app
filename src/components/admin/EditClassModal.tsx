@@ -80,16 +80,16 @@ function EditClassForm({
       <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[90dvh] rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl flex flex-col min-h-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-cyan-400 border border-sky-500/20">
+        <div className="shrink-0 flex items-center justify-between gap-2 p-4 sm:p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-cyan-400 border border-sky-500/20 shrink-0">
               <GraduationCap className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
                 Edit Class: {schoolClass.name}
               </h3>
-              <p className="text-xs text-neutral-500">
+              <p className="text-[11px] sm:text-xs text-neutral-500 truncate">
                 Update name, icon emoji, description and order priority
               </p>
             </div>
@@ -100,14 +100,14 @@ function EditClassForm({
               sound.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-mono font-semibold uppercase mb-1">

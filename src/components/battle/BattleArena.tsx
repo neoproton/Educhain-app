@@ -94,13 +94,13 @@ export const BattleArena: React.FC = () => {
       
       {/* Real-time Opponent Attack Notification */}
       {opponentEventNotification && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-xs shadow-2xl animate-bounce flex items-center gap-2">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 sm:px-5 py-2 sm:py-2.5 max-w-[90vw] rounded-2xl sm:rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-xs shadow-2xl animate-bounce flex items-center justify-center gap-2 text-center whitespace-normal">
           <span>{opponentEventNotification}</span>
         </div>
       )}
 
       {/* Top Combat HUD (Split Screen HP & Scores) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-xl card-lift">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-xl card-lift">
         
         {/* Left: You */}
         <div className="flex items-center gap-3.5">
@@ -195,14 +195,14 @@ export const BattleArena: React.FC = () => {
       </div>
 
       {/* Main Question Card */}
-      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-xl space-y-6 card-lift">
+      <div className="p-4 sm:p-8 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] shadow-xl space-y-5 sm:space-y-6 card-lift">
         
         {/* Category tags */}
-        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-[#94A3B8]">
-          <span className="font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-[#94A3B8]">
+          <span className="font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 min-w-0 break-words">
             {currentRoom.subjectName} • {currentRoom.chapter || "Quick Battle"}
           </span>
-          <span className="font-mono font-bold">
+          <span className="font-mono font-bold shrink-0 whitespace-nowrap">
             Time limit: {currentRoom.timePerQuestion}s
           </span>
         </div>

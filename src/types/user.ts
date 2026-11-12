@@ -62,3 +62,21 @@ export interface Achievement {
   icon: string;
   xpReward: number;
 }
+
+export interface XpLevelRule {
+  id: string;
+  name: string;
+  minXp: number;
+  icon: string;
+  color?: string;
+  description?: string;
+}
+
+export interface StreakLevelRule {
+  id: string;
+  name: string;
+  minDays: number;
+  icon: string;
+  color?: string;
+  description?: string;
+}

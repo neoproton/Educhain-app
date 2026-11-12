@@ -1,4 +1,4 @@
-import { ScholarRank, Achievement, LeaderboardScholar } from "@/types/user";
+import { ScholarRank, Achievement, LeaderboardScholar, XpLevelRule, StreakLevelRule } from "@/types/user";
 import { GradeType, SubjectType, StreamDomain, StreamDomainId, SchoolClass } from "@/types/curriculum";
 
 export const DEFAULT_CLASSES: SchoolClass[] = [
@@ -38,6 +38,21 @@ export const RANKS: ScholarRank[] = [
   { level: 3, name: "Adept", minXp: 1300, maxXp: 2499, stages: "13–18", icon: "🛡️" },
   { level: 4, name: "Expert", minXp: 2500, maxXp: 3999, stages: "19–24", icon: "💎" },
   { level: 5, name: "Master", minXp: 4000, maxXp: Infinity, stages: "25+", icon: "👑" },
+];
+
+export const DEFAULT_XP_LEVELS: XpLevelRule[] = [
+  { id: "xp_novice", name: "Novice", minXp: 0, icon: "🌱", color: "#34d399", description: "Beginning your academic chain" },
+  { id: "xp_apprentice", name: "Apprentice", minXp: 500, icon: "⚡", color: "#38bdf8", description: "Building steady mastery across subjects" },
+  { id: "xp_adept", name: "Intermediate", minXp: 1300, icon: "🛡️", color: "#818cf8", description: "Consistent scholar tackling harder concepts" },
+  { id: "xp_expert", name: "Expert", minXp: 2500, icon: "💎", color: "#a78bfa", description: "High-accuracy problem solver" },
+  { id: "xp_master", name: "Master", minXp: 4000, icon: "👑", color: "#fbbf24", description: "Top-tier academic achiever" },
+];
+
+export const DEFAULT_STREAK_LEVELS: StreakLevelRule[] = [
+  { id: "streak_starter", name: "Starter", minDays: 1, icon: "🔥", color: "#fb923c", description: "First daily quest active" },
+  { id: "streak_dedicated", name: "Dedicated", minDays: 3, icon: "✨", color: "#f59e0b", description: "Three-day study momentum" },
+  { id: "streak_intermediate", name: "Intermediate", minDays: 10, icon: "⚡", color: "#38bdf8", description: "Ten consecutive days of practice" },
+  { id: "streak_master", name: "Master", minDays: 30, icon: "👑", color: "#a78bfa", description: "Unbroken 30-day dedication" },
 ];
 
 export const GRADE_LABELS: Record<GradeType, string> = {

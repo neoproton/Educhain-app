@@ -11,6 +11,7 @@ import { EditStageModal } from "@/components/admin/EditStageModal";
 import { EditSubjectModal } from "@/components/admin/EditSubjectModal";
 import { EditClassModal } from "@/components/admin/EditClassModal";
 import { UsersManager } from "@/components/admin/UsersManager";
+import { ProgressionLevelsEditor } from "@/components/admin/ProgressionLevelsEditor";
 import { 
   Plus, 
   Trash2, 
@@ -51,7 +52,8 @@ import {
   Sliders,
   Hash,
   KeyRound,
-  X
+  X,
+  Award
 } from "lucide-react";
 import { SleekIcon, SleekBadgeIcon } from "@/components/SleekIcon";
 
@@ -180,7 +182,12 @@ CREATE TABLE IF NOT EXISTS public.custom_stages (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE IF EXISTS public.custom_stages
+  ADD COLUMN IF NOT EXISTS subject_stage_number INTEGER DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS grade TEXT DEFAULT 'grade_9',
   ADD COLUMN IF NOT EXISTS chapter_number INTEGER,
+  ADD COLUMN IF NOT EXISTS learning_objective TEXT,
+  ADD COLUMN IF NOT EXISTS difficulty TEXT DEFAULT 'Medium',
+  ADD COLUMN IF NOT EXISTS xp_reward INTEGER DEFAULT 100,
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- 5. Centralized Chapter Ordering (Built-in + Custom Chapters)
@@ -240,6 +247,16 @@ CREATE TABLE IF NOT EXISTS public.multiplayer_rooms (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 8B. Progression Level Settings (XP & Streak Tiers)
+CREATE TABLE IF NOT EXISTS public.curriculum_progression_settings (
+  id TEXT PRIMARY KEY DEFAULT 'global',
+  xp_levels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  streak_levels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- 9. Strict Admin Write / Public Read RLS Policies
 ALTER TABLE public.custom_classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_subjects ENABLE ROW LEVEL SECURITY;
@@ -247,6 +264,7 @@ ALTER TABLE public.custom_stages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.curriculum_chapter_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.curriculum_stage_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deleted_curriculum_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.curriculum_progression_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.multiplayer_rooms ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read custom_classes" ON public.custom_classes;
@@ -282,10 +300,18 @@ DROP POLICY IF EXISTS "Admin write deleted_curriculum_items" ON public.deleted_c
 CREATE POLICY "Public read deleted_curriculum_items" ON public.deleted_curriculum_items FOR SELECT USING (true);
 CREATE POLICY "Admin write deleted_curriculum_items" ON public.deleted_curriculum_items FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
 
+DROP POLICY IF EXISTS "Public read curriculum_progression_settings" ON public.curriculum_progression_settings;
+DROP POLICY IF EXISTS "Admin write curriculum_progression_settings" ON public.curriculum_progression_settings;
+CREATE POLICY "Public read curriculum_progression_settings" ON public.curriculum_progression_settings FOR SELECT USING (true);
+CREATE POLICY "Admin write curriculum_progression_settings" ON public.curriculum_progression_settings FOR ALL TO authenticated USING (public.is_curriculum_admin()) WITH CHECK (public.is_curriculum_admin());
+
 DROP POLICY IF EXISTS "Allow public read multiplayer_rooms" ON public.multiplayer_rooms;
 DROP POLICY IF EXISTS "Allow public write multiplayer_rooms" ON public.multiplayer_rooms;
 CREATE POLICY "Allow public read multiplayer_rooms" ON public.multiplayer_rooms FOR SELECT USING (true);
 CREATE POLICY "Allow public write multiplayer_rooms" ON public.multiplayer_rooms FOR ALL USING (true) WITH CHECK (true);
+
+-- Refresh PostgREST schema cache immediately so newly added columns work right away:
+NOTIFY pgrst, 'reload schema';
 
 -- Grant your Supabase Auth user curriculum admin privileges (replace with your email):
 -- INSERT INTO public.curriculum_admins (user_id, email)
@@ -330,7 +356,8 @@ export default function AdminPage() {
     checkCloudAdminStatus
   } = useCurriculumStore();
 
-  const [activeTab, setActiveTab] = useState<"csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "users" | "sql">("csv");
+  type AdminTabId = "csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "levels" | "users" | "sql";
+  const [activeTab, setActiveTab] = useState<AdminTabId>("csv");
   
   // Chapter Ordering Management State
   const [orderGrade, setOrderGrade] = useState<string>("grade_9");
@@ -1055,107 +1082,124 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen educhain-bg text-neutral-900 dark:text-neutral-100 font-sans selection:bg-blue-600 selection:text-white relative">
+    <div className="min-h-screen overflow-x-clip educhain-bg text-neutral-900 dark:text-neutral-100 font-sans selection:bg-blue-600 selection:text-white relative">
       
       {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-neutral-200 dark:border-white/10 bg-white/80 dark:bg-[#101827]/85 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link 
+      <header className="sticky top-0 z-30 border-b border-neutral-200/80 dark:border-white/10 bg-white/85 dark:bg-[#101827]/90 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Link
               href="/"
-              className="p-2 rounded-lg border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-white/5 transition-colors shrink-0"
               title="Return to Student Portal"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
               <img
                 src="/logo.png"
                 alt="EduChain"
-                className="w-8 h-8 rounded-xl object-cover border border-blue-500/20 shadow-sm shrink-0"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
               />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-base tracking-tight">EduChain Studio</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold uppercase">
-                    Admin Panel
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-heading font-bold text-sm sm:text-base tracking-tight text-neutral-900 dark:text-white truncate">
+                    EduChain Studio
+                  </span>
+                  <span className="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:bg-cyan-500/15 dark:text-cyan-300 border border-blue-500/20 dark:border-cyan-500/25 shrink-0">
+                    Admin
                   </span>
                 </div>
-                <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                  Curriculum Content & MCQ Manager
+                <p className="hidden sm:block text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+                  Curriculum &amp; Assessment Console
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {cloudSyncStatus === "connected" ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <Cloud className="w-3.5 h-3.5" />
-                <span>Cloud Synced</span>
-              </div>
-            ) : (
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Unified Cloud Status, Auth & Sync Control Bar */}
+            <div className="inline-flex items-center h-8 sm:h-9 rounded-lg border border-neutral-200/90 dark:border-white/10 bg-neutral-50/90 dark:bg-[#182438] divide-x divide-neutral-200/80 dark:divide-white/10 shadow-xs overflow-hidden">
+              {cloudSyncStatus === "connected" ? (
+                <div
+                  className="h-full px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-200"
+                  title="Supabase Cloud connected: changes synchronize with your Supabase database"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hidden sm:block shrink-0" />
+                  <span className="hidden lg:inline">Cloud Synced</span>
+                  <span className="hidden sm:inline lg:hidden">Synced</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setActiveTab("sql");
+                  }}
+                  className="h-full px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                  title="Supabase table not detected. Click to set up."
+                >
+                  <CloudOff className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Local Only</span>
+                </button>
+              )}
+
               <button
+                type="button"
                 onClick={() => {
                   sound.playClick();
-                  setActiveTab("sql");
+                  if (isCloudAdmin) {
+                    handleCloudAdminSignOut();
+                  } else {
+                    setCloudAuthError(null);
+                    setIsCloudAuthOpen(true);
+                  }
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
-                title="Supabase table not detected. Click to set up."
+                className={`h-full px-2.5 sm:px-3 flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  isCloudAdmin
+                    ? "text-emerald-700 dark:text-emerald-300 hover:bg-neutral-100 dark:hover:bg-white/5"
+                    : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/5"
+                }`}
+                title={isCloudAdmin ? `Authenticated as ${cloudUserEmail || "Cloud Admin"} (Click to sign out)` : "Sign in with Supabase Cloud Admin account to write changes"}
               >
-                <CloudOff className="w-3.5 h-3.5" />
-                <span>Local Storage Only</span>
+                {isCloudAdmin ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                )}
+                <span className="hidden md:inline">{isCloudAdmin ? "Cloud Admin" : "Cloud Sign In"}</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-                if (isCloudAdmin) {
-                  handleCloudAdminSignOut();
-                } else {
-                  setCloudAuthError(null);
-                  setIsCloudAuthOpen(true);
-                }
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors ${
-                isCloudAdmin
-                  ? "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/20"
-                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 hover:bg-amber-500/20"
-              }`}
-              title={isCloudAdmin ? `Authenticated as ${cloudUserEmail || "Cloud Admin"} (Click to sign out)` : "Sign in with Supabase Cloud Admin account to write changes"}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{isCloudAdmin ? "Cloud Admin" : "Cloud Sign In"}</span>
-            </button>
-
-            <button
-              disabled={isPushingCloud}
-              onClick={handlePushToCloud}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
-              title="Push all locally stored stages & MCQs to Supabase cloud"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isPushingCloud ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Sync Cloud</span>
-            </button>
+              <button
+                type="button"
+                disabled={isPushingCloud}
+                onClick={handlePushToCloud}
+                className="h-full px-2.5 sm:px-3 flex items-center gap-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
+                title="Push all locally stored stages & MCQs to Supabase cloud"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400 ${isPushingCloud ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Sync</span>
+              </button>
+            </div>
 
             <Link
               href="/"
               target="_blank"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-medium border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-white/5 shadow-xs transition-colors"
             >
               <span>Student App</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
             </Link>
 
             <button
+              type="button"
               onClick={handleLockAdmin}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 transition-all"
+              className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-xs font-medium border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-500/30 hover:bg-rose-50/70 dark:hover:bg-rose-500/10 shadow-xs transition-colors cursor-pointer"
               title="Lock admin session"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Lock Panel</span>
+              <span className="hidden sm:inline">Lock</span>
             </button>
           </div>
         </div>
@@ -1163,8 +1207,8 @@ export default function AdminPage() {
 
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed bottom-6 right-6 z-50 max-w-md px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-medium border animate-in slide-in-from-bottom-3 ${
-          notification.type === "success" 
+        <div className={`fixed bottom-4 left-3 right-3 sm:left-auto sm:bottom-6 sm:right-6 z-50 sm:max-w-md px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-medium border animate-in slide-in-from-bottom-3 ${
+          notification.type === "success"
             ? "bg-emerald-50 dark:bg-emerald-950/90 text-emerald-800 dark:text-emerald-200 border-emerald-500/30"
             : "bg-rose-50 dark:bg-rose-950/90 text-rose-800 dark:text-rose-200 border-rose-500/30"
         }`}>
@@ -1174,13 +1218,13 @@ export default function AdminPage() {
       )}
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
 
-        {/* Supabase Status Alert Banner */}
+        {/* Supabase Status Alert Banner (only shown when setup action is required) */}
         {cloudSyncStatus === "disconnected" && (
-          <div className="mb-8 p-4 rounded-2xl border border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+          <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-50/70 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
@@ -1195,18 +1239,20 @@ export default function AdminPage() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
+                type="button"
                 onClick={() => {
                   sound.playClick();
                   setActiveTab("sql");
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 shadow-sm transition-all"
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 shadow-xs transition-all cursor-pointer"
               >
-                Open SQL Setup Tab
+                Open SQL Setup
               </button>
               <button
+                type="button"
                 disabled={isPushingCloud}
                 onClick={handlePushToCloud}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-amber-500/30 bg-white dark:bg-black/40 hover:bg-amber-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-amber-500/30 bg-white dark:bg-black/40 hover:bg-amber-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isPushingCloud ? "animate-spin" : ""}`} />
                 <span>Retry Sync</span>
@@ -1215,56 +1261,67 @@ export default function AdminPage() {
           </div>
         )}
 
-        {cloudSyncStatus === "connected" && (
-          <div className="mb-6 px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-emerald-500" />
-              <span><strong>Supabase Cloud Connected:</strong> All custom stages and MCQs are synchronizing live with your Supabase database.</span>
-            </div>
-            <button
-              disabled={isPushingCloud}
-              onClick={handlePushToCloud}
-              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
-            >
-              <RefreshCw className={`w-3 h-3 ${isPushingCloud ? "animate-spin" : ""}`} />
-              <span>Force Re-sync</span>
-            </button>
+        {/* Uniform Segmented Navigation Bar */}
+        <nav
+          aria-label="Admin sections"
+          className="mb-6 p-1 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-neutral-100/85 dark:bg-[#141f31] shadow-xs"
+        >
+          <div className="grid grid-cols-3 lg:grid-cols-9 gap-1" role="tablist">
+            {(
+              [
+                { id: "csv", label: "CSV Import", icon: FileSpreadsheet },
+                { id: "upload", label: "Add MCQ", icon: Plus },
+                { id: "manage", label: "Stages", count: allStages.length, icon: BookOpen },
+                { id: "chapters", label: "Chapters", icon: ListOrdered },
+                { id: "subjects", label: "Subjects", count: allSubjects.length, icon: Layers },
+                { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap },
+                { id: "levels", label: "XP & Streak", icon: Award },
+                { id: "users", label: "Scholars", icon: Users },
+                { id: "sql", label: "Cloud SQL", icon: Database },
+              ] as const
+            ).map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    sound.playClick();
+                    setActiveTab(tab.id);
+                  }}
+                  className={`h-9 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                    tab.id === "sql" ? "col-span-2 sm:col-span-1" : ""
+                  } ${
+                    isActive
+                      ? "bg-white dark:bg-[#223149] text-neutral-900 dark:text-white font-semibold shadow-sm ring-1 ring-neutral-900/5 dark:ring-white/10"
+                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isActive ? "text-blue-600 dark:text-cyan-400" : "text-neutral-500 dark:text-neutral-400"
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+                  {"count" in tab && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums leading-none ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 dark:bg-cyan-500/15 dark:text-cyan-300"
+                          : "bg-neutral-200/70 dark:bg-white/10 text-neutral-600 dark:text-neutral-300"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        )}
-        
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-8 pb-4 border-b border-neutral-200 dark:border-white/10">
-          {[
-            { id: "csv", label: "Upload via CSV File", icon: FileSpreadsheet },
-            { id: "upload", label: "Manual Form MCQ Builder", icon: Plus },
-            { id: "manage", label: `Manage Stages (${allStages.length})`, icon: BookOpen },
-            { id: "chapters", label: "Chapter Ordering", icon: ListOrdered },
-            { id: "subjects", label: `Manage Subjects (${allSubjects.length})`, icon: Layers },
-            { id: "classes", label: `Manage Classes (${allClasses.length})`, icon: GraduationCap },
-            { id: "users", label: "Scholars & Users Data", icon: Users },
-            { id: "sql", label: "Supabase Cloud Setup", icon: Database },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  sound.playClick();
-                  setActiveTab(tab.id as any);
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                  isActive
-                    ? "btn-educhain-primary text-white shadow-md shadow-blue-500/20"
-                    : "bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-white/10 hover:text-black dark:hover:text-white"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        </nav>
 
         {/* ======================================================== */}
         {/* TAB 0: UPLOAD VIA CSV FILE (FOR SPECIFIC STAGE OF SPECIFIC CHAPTER OF SUBJECT) */}
@@ -1273,7 +1330,7 @@ export default function AdminPage() {
           <form onSubmit={handleSaveCSVStage} className="space-y-8 animate-in fade-in duration-200">
             
             {/* Header info & Template download */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+            <div className="p-4 sm:p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-4 border-b border-neutral-100 dark:border-white/5">
                 <div>
                   <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
@@ -1495,7 +1552,7 @@ export default function AdminPage() {
             </div>
 
             {/* CSV File Upload Dropzone */}
-            <div className="p-8 rounded-2xl border-2 border-dashed border-neutral-300 dark:border-white/15 bg-white dark:bg-[#182438] text-center shadow-sm">
+            <div className="p-5 sm:p-8 rounded-2xl border-2 border-dashed border-neutral-300 dark:border-white/15 bg-white dark:bg-[#182438] text-center shadow-sm">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -1595,14 +1652,14 @@ export default function AdminPage() {
                 </div>
 
                 {/* Publish Action Button */}
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
                   <span className="text-xs text-neutral-500">
                     Will be created in <strong>{csvChapter || "Chapter"}</strong> as <strong>{csvTitle || "New Stage"}</strong>
                   </span>
 
                   <button
                     type="submit"
-                    className="btn-educhain-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    className="w-full sm:w-auto btn-educhain-primary text-xs px-5 sm:px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     <Check className="w-4 h-4" />
                     <span>Publish Stage with {csvParsedQuestions.length} CSV MCQs</span>
@@ -1621,7 +1678,7 @@ export default function AdminPage() {
           <form onSubmit={handleSaveStage} className="space-y-8 animate-in fade-in duration-200">
             
             {/* Step 1: Subject, Chapter & Topic (REQUIRED FIELDS) */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+            <div className="p-4 sm:p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <div className="flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100 dark:border-white/5">
                 <span className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-600 dark:text-cyan-400 font-bold text-xs flex items-center justify-center font-mono">
                   1
@@ -1972,11 +2029,11 @@ export default function AdminPage() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#182438] border border-neutral-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={handleAddQuestionRow}
-                className="btn-educhain-secondary text-xs px-4 py-2 rounded-xl flex items-center gap-1.5"
+                className="flex-1 sm:flex-initial btn-educhain-secondary text-xs px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-xl flex items-center justify-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Question</span>
@@ -1984,7 +2041,7 @@ export default function AdminPage() {
 
               <button
                 type="submit"
-                className="btn-educhain-primary text-xs px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="flex-1 sm:flex-initial btn-educhain-primary text-xs px-5 sm:px-6 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <Check className="w-4 h-4" />
                 <span>Publish Stage & MCQs</span>
@@ -2001,7 +2058,7 @@ export default function AdminPage() {
           <div className="space-y-8 animate-in fade-in duration-200">
             
             {/* Create Subject Form */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+            <div className="p-4 sm:p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-1">
                 Create New Academic Subject
               </h3>
@@ -2272,7 +2329,7 @@ export default function AdminPage() {
           <div className="space-y-8 animate-in fade-in duration-200">
             
             {/* Create Class Form */}
-            <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+            <div className="p-4 sm:p-6 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
               <h3 className="text-base font-bold text-neutral-900 dark:text-white mb-1 flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-sky-500" />
                 <span>Create New Class / Standard</span>
@@ -2493,6 +2550,14 @@ export default function AdminPage() {
             chapMap.get(chap)!.stages.push(s);
           });
 
+          const totalSubjectChapters = chapMap.size;
+          const highestAssignedChapter = Array.from(chapMap.entries()).reduce(
+            (maxNum, [name, info]) => Math.max(maxNum, chapterEdits[name] ?? info.originalNumber),
+            6
+          );
+          const maxQuickNum = Math.min(12, Math.max(totalSubjectChapters, highestAssignedChapter, 6));
+          const quickNumbers = Array.from({ length: maxQuickNum }, (_, i) => i + 1);
+
           // Build list
           let chaptersList = Array.from(chapMap.entries()).map(([chapterName, info]) => {
             const currentNum = chapterEdits[chapterName] ?? info.originalNumber;
@@ -2512,8 +2577,10 @@ export default function AdminPage() {
             );
           }
 
-          // Sort by assigned chapterNumber
-          chaptersList.sort((a, b) => a.chapterNumber - b.chapterNumber);
+          // Sort by assigned chapterNumber deterministically
+          chaptersList.sort(
+            (a, b) => a.chapterNumber - b.chapterNumber || a.chapterName.localeCompare(b.chapterName)
+          );
 
           const handleUpdateChapterNumber = (chapName: string, newNum: number) => {
             const valid = Math.max(1, Math.min(99, newNum));
@@ -2708,7 +2775,7 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3.5">
-                  <div className="flex items-center justify-between px-1 text-xs font-mono text-neutral-500">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] sm:text-xs font-mono text-neutral-500">
                     <span>{chaptersList.length} Chapters Found in {selectedSubMeta?.name}</span>
                     <span>Sorted by Assigned Chapter Number</span>
                   </div>
@@ -2718,16 +2785,19 @@ export default function AdminPage() {
                     return (
                       <div
                         key={chap.chapterName}
-                        className="p-5 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-blue-500/40 dark:hover:border-cyan-400/40 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 card-lift"
+                        className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-blue-500/40 dark:hover:border-cyan-400/40 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4 card-lift"
                       >
                         {/* Chapter Left Info */}
-                        <div className="flex items-start gap-4">
-                          {/* Live Chapter Badge (Updates in Real-Time!) */}
-                          <div className="shrink-0 flex flex-col items-center">
-                            <span className="px-3 py-1 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs">
+                        <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                          {/* Live Chapter Badge (Fixed uniform width so titles align vertically) */}
+                          <div className="w-[96px] sm:w-[120px] shrink-0 flex flex-col items-center">
+                            <span
+                              title={`Chapter ${word}`}
+                              className="w-full text-center px-2.5 py-1 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs whitespace-nowrap truncate"
+                            >
                               Chapter {word}
                             </span>
-                            <span className="text-[10px] font-mono text-neutral-400 mt-1">
+                            <span className="text-[10px] font-mono tabular-nums text-neutral-400 mt-1">
                               Position #{idx + 1}
                             </span>
                           </div>
@@ -2738,14 +2808,14 @@ export default function AdminPage() {
                             </h4>
 
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-cyan-400 font-semibold border border-blue-500/15">
+                              <span className="text-[10px] font-mono font-semibold leading-tight px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-cyan-400 border border-blue-500/15 shrink-0">
                                 {chap.stages.length} {chap.stages.length === 1 ? "Stage" : "Stages"}
                               </span>
-                              
+
                               {chap.topics.slice(0, 3).map((topic) => (
                                 <span
                                   key={topic}
-                                  className="text-[10px] px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-white/5 text-neutral-600 dark:text-neutral-400 truncate max-w-[200px]"
+                                  className="text-[10px] font-medium leading-tight px-2.5 py-1 rounded-md border border-transparent bg-neutral-100 dark:bg-white/5 text-neutral-600 dark:text-neutral-400 truncate max-w-[200px]"
                                 >
                                   {topic}
                                 </span>
@@ -2760,8 +2830,8 @@ export default function AdminPage() {
                         </div>
 
                         {/* Interactive Chapter Number Controller */}
-                        <div className="flex items-center gap-3 shrink-0 self-end md:self-center bg-slate-50 dark:bg-[#101827]/80 p-2.5 rounded-2xl border border-slate-200 dark:border-white/10">
-                          <div className="flex flex-col text-right pr-1">
+                        <div className="flex items-center justify-between md:justify-start gap-3 shrink-0 w-full md:w-auto self-stretch md:self-center bg-slate-50 dark:bg-[#101827]/80 p-2.5 rounded-2xl border border-slate-200 dark:border-white/10">
+                          <div className="flex flex-col text-left md:text-right pr-1">
                             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
                               Chapter Number
                             </span>
@@ -2789,6 +2859,7 @@ export default function AdminPage() {
                               type="number"
                               min="1"
                               max="99"
+                              aria-label={`Chapter number for ${chap.chapterName}`}
                               value={chap.chapterNumber}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
@@ -2796,7 +2867,7 @@ export default function AdminPage() {
                                   handleUpdateChapterNumber(chap.chapterName, val);
                                 }
                               }}
-                              className="w-14 h-8 text-center font-heading font-extrabold text-sm rounded-lg border border-blue-500/30 dark:border-cyan-400/30 bg-white dark:bg-[#182438] text-blue-600 dark:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-14 h-8 p-0 text-center tabular-nums font-heading font-extrabold text-sm rounded-lg border border-blue-500/30 dark:border-cyan-400/30 bg-white dark:bg-[#182438] text-blue-600 dark:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
 
                             <button
@@ -2813,9 +2884,9 @@ export default function AdminPage() {
                             </button>
                           </div>
 
-                          {/* Quick Jump Buttons (e.g. quick set 1, 2, 3, 6) */}
+                          {/* Dynamic Quick Jump Buttons matching subject chapter range */}
                           <div className="hidden lg:flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-white/10">
-                            {[1, 2, 3, 4, 5, 6].map((quickNum) => (
+                            {quickNumbers.map((quickNum) => (
                               <button
                                 key={quickNum}
                                 type="button"
@@ -2823,9 +2894,10 @@ export default function AdminPage() {
                                   sound.playClick();
                                   handleUpdateChapterNumber(chap.chapterName, quickNum);
                                 }}
-                                className={`w-6 h-6 rounded-md text-[10px] font-mono font-bold transition-all ${
+                                title={`Set chapter number to ${quickNum}`}
+                                className={`w-6 h-6 rounded-md text-[10px] font-mono tabular-nums font-bold cursor-pointer transition-all ${
                                   chap.chapterNumber === quickNum
-                                    ? "bg-blue-600 text-white"
+                                    ? "bg-blue-600 text-white shadow-xs"
                                     : "bg-slate-200/60 dark:bg-white/5 text-slate-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"
                                 }`}
                               >
@@ -2941,15 +3013,16 @@ export default function AdminPage() {
 
             {/* Stages Table */}
             <div className="border border-neutral-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#182438]">
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] text-neutral-500 font-mono">
                   <tr>
-                    <th className="py-3 px-4">Class / Subject</th>
-                    <th className="py-3 px-4">Chapter</th>
-                    <th className="py-3 px-4">Stage Title / Topic</th>
-                    <th className="py-3 px-4 text-center">MCQs</th>
-                    <th className="py-3 px-4 text-center">Difficulty</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Class / Subject</th>
+                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Chapter</th>
+                    <th className="py-3 px-3 sm:px-4">Stage Title / Topic</th>
+                    <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">MCQs</th>
+                    <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Difficulty</th>
+                    <th className="py-3 px-3 sm:px-4 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.04]">
@@ -3010,10 +3083,10 @@ export default function AdminPage() {
                             <div className="font-semibold text-neutral-900 dark:text-white">{stage.title}</div>
                             <div className="text-[11px] text-neutral-500">{stage.topic}</div>
                           </td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400">
+                          <td className="py-3 px-3 sm:px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                             {stage.questions.length} Qs
                           </td>
-                          <td className="py-3 px-4 text-center font-mono">
+                          <td className="py-3 px-3 sm:px-4 text-center font-mono whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               stage.difficulty === "Easy" ? "bg-emerald-500/10 text-emerald-600" :
                               stage.difficulty === "Medium" ? "bg-amber-500/10 text-amber-600" : "bg-rose-500/10 text-rose-600"
@@ -3021,7 +3094,7 @@ export default function AdminPage() {
                               {stage.difficulty}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3 px-3 sm:px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2.5">
                               <button
                                 onClick={() => {
@@ -3057,6 +3130,7 @@ export default function AdminPage() {
                     })}
                 </tbody>
               </table>
+              </div>
             </div>
 
           </div>
@@ -3065,6 +3139,10 @@ export default function AdminPage() {
         {/* ======================================================== */}
         {/* TAB 4: USERS & SCHOLARS MANAGEMENT */}
         {/* ======================================================== */}
+        {activeTab === "levels" && (
+          <ProgressionLevelsEditor onCloudAction={reportCloudAction} />
+        )}
+
         {activeTab === "users" && (
           <UsersManager onNotify={showNotification} />
         )}

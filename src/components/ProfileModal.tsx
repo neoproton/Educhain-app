@@ -5,7 +5,8 @@ import Image from "next/image";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { GradeType } from "@/types/curriculum";
-import { GRADE_LABELS, RANKS } from "@/data/constants";
+import { GRADE_LABELS } from "@/data/constants";
+import { getXpProgress } from "@/lib/progression";
 import { sound } from "@/lib/audio";
 import { supabase } from "@/lib/supabase/client";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
@@ -59,8 +60,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   useBodyScrollLock(true);
 
   const { name, avatar, grade, xp, isGuest, setProfile, resetProgress, signOut } = useEduStore();
-  const { getAllClasses } = useCurriculumStore();
+  const { getAllClasses, getXpLevels } = useCurriculumStore();
   const allClasses = getAllClasses();
+  const xpLevels = getXpLevels();
   const [tempName, setTempName] = useState(name || "Scholar");
   const [tempAvatar, setTempAvatar] = useState(avatar || "🧠");
   const [tempGrade, setTempGrade] = useState<GradeType>(grade || "grade_9");
@@ -74,7 +76,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     });
   }, []);
 
-  const currentRank = RANKS.slice().reverse().find((r) => xp >= r.minXp) || RANKS[0];
+  const currentRank = getXpProgress(xp, xpLevels).currentLevel;
 
   const handleSave = () => {
     sound.playClick();
@@ -120,7 +122,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="h-1 w-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500 shrink-0" />
 
         {/* Pinned Header */}
-        <div className="shrink-0 flex items-center justify-between p-5 pb-4 border-b border-neutral-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-[#141f30]/80 backdrop-blur-sm z-10">
+        <div className="shrink-0 flex items-center justify-between p-4 sm:p-5 sm:pb-4 border-b border-neutral-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-[#141f30]/80 backdrop-blur-sm z-10">
           <div className="flex items-center gap-2.5">
             <div className="relative w-8 h-8 rounded-xl overflow-hidden border border-[#2563EB]/40 bg-[#101827] shadow-xs shrink-0">
               <Image src="/logo.png" alt="EduChain" fill sizes="32px" className="object-cover" />
@@ -136,25 +138,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         </div>
 
         {/* Scrollable Middle Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
 
           {/* Account Status Card */}
-          <div className="p-4 rounded-2xl border border-neutral-200/80 dark:border-white/10 bg-neutral-50 dark:bg-[#101827]/80 shadow-inner">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="p-3.5 sm:p-4 rounded-2xl border border-neutral-200/80 dark:border-white/10 bg-neutral-50 dark:bg-[#101827]/80 shadow-inner">
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                 <ScholarAvatar name={tempName} avatar={tempAvatar} size="md" />
-                <div>
-                  <div className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <span>{name || "Scholar"}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/15 border border-blue-500/25 text-blue-600 dark:text-cyan-300 font-semibold">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-neutral-900 dark:text-white flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="truncate max-w-[130px] sm:max-w-[180px]">{name || "Scholar"}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/15 border border-blue-500/25 text-blue-600 dark:text-cyan-300 font-semibold shrink-0">
                       {currentRank.name}
                     </span>
                   </div>
-                  <div className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5 mt-1">
+                  <div className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5 mt-1 min-w-0">
                     {userEmail ? (
                       <>
-                        <Mail className="w-3 h-3 text-emerald-500" />
-                        <span className="truncate max-w-[190px]">{userEmail}</span>
+                        <Mail className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span className="truncate max-w-[140px] sm:max-w-[190px]">{userEmail}</span>
                       </>
                     ) : (
                       <span>Guest Mode (Local Only)</span>
@@ -163,9 +165,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs font-mono font-extrabold text-amber-500 flex items-center justify-end gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <Zap className="w-3.5 h-3.5 fill-current" />
+              <div className="text-right shrink-0">
+                <div className="text-xs font-mono font-extrabold text-amber-500 flex items-center justify-end gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 whitespace-nowrap">
+                  <Zap className="w-3.5 h-3.5 fill-current shrink-0" />
                   <span>{xp} XP</span>
                 </div>
               </div>
@@ -218,7 +220,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <label className="block text-xs font-mono text-neutral-500 dark:text-neutral-400 uppercase mb-1.5 font-semibold">
               Select Scholar Insignia
             </label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {AVATAR_GLYPHS.map((item) => {
                 const Icon = item.icon;
                 const isSelected = tempAvatar === item.id;
@@ -228,14 +230,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     type="button"
                     onClick={() => { setTempAvatar(item.id); sound.playClick(); }}
                     title={item.label}
-                    className={`h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer ${
+                    className={`h-12 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer min-w-0 ${
                       isSelected
                         ? "bg-gradient-to-tr from-blue-600 to-cyan-500 text-white border-transparent shadow-[0_0_12px_rgba(37,99,235,0.35)] scale-105"
                         : "bg-neutral-50 dark:bg-[#101827] border-neutral-200 dark:border-white/10 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:border-blue-500/30"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[9px] font-mono leading-none">{item.label}</span>
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-mono leading-none truncate w-full text-center">{item.label}</span>
                   </button>
                 );
               })}

@@ -79,7 +79,7 @@ export const BattlePodium: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
       
       {/* Top Card */}
-      <div className={`p-8 sm:p-10 rounded-3xl border bg-white dark:bg-[#182438] shadow-2xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.6)] text-center space-y-6 card-lift ${
+      <div className={`p-5 sm:p-10 rounded-3xl border bg-white dark:bg-[#182438] shadow-2xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.6)] text-center space-y-5 sm:space-y-6 card-lift ${
         isMeWinner
           ? "border-amber-400/50 dark:border-amber-400/40 ring-1 ring-amber-400/30"
           : "border-slate-200 dark:border-[#263B5B]"
@@ -141,22 +141,22 @@ export const BattlePodium: React.FC = () => {
             return (
               <div
                 key={player.playerId}
-                className={`p-5 rounded-2xl border text-left flex items-center justify-between transition-all card-lift ${
+                className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between gap-2 transition-all card-lift ${
                   isWinner
                     ? "border-amber-400/60 bg-gradient-to-br from-amber-500/15 to-transparent shadow-md ring-1 ring-amber-400/40"
                     : "border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/60"
                 }`}
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="relative">
+                <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                  <div className="relative shrink-0">
                     <ScholarAvatar name={player.name} avatar={player.avatar} size="lg" />
                     {isWinner && (
                       <Crown className="w-4 h-4 text-amber-400 absolute -top-2 -right-1 fill-amber-400 animate-pulse" />
                     )}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-heading font-bold text-sm text-slate-900 dark:text-white">
+                      <span className="font-heading font-bold text-sm text-slate-900 dark:text-white truncate">
                         {player.name}
                       </span>
                       {isSelf && (

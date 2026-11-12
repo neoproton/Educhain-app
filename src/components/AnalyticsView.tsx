@@ -106,10 +106,10 @@ export const AnalyticsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 animate-in fade-in duration-300">
       
       {/* Sub-Navigation: Overview vs Review Errors */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 pb-4 border-b border-slate-200/90 dark:border-[#263B5B]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-4 border-b border-slate-200/90 dark:border-[#263B5B]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="p-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-[#2563EB] dark:text-[#22D3EE] shadow-xs">
@@ -125,20 +125,20 @@ export const AnalyticsView: React.FC = () => {
         </div>
 
         {/* Section Switcher Tabs */}
-        <div className="flex items-center gap-1 border border-slate-200 dark:border-[#263B5B] rounded-2xl p-1 bg-white dark:bg-[#182438] shadow-xs">
+        <div className="grid grid-cols-2 sm:flex items-center gap-1 border border-slate-200 dark:border-[#263B5B] rounded-2xl p-1 bg-white dark:bg-[#182438] shadow-xs w-full sm:w-auto">
           <button
             onClick={() => {
               setActiveSection("overview");
               sound.playClick();
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${
               activeSection === "overview"
                 ? "bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs"
                 : "text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white"
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Analytics & Stats</span>
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Analytics & Stats</span>
           </button>
 
           <button
@@ -146,16 +146,16 @@ export const AnalyticsView: React.FC = () => {
               setActiveSection("mistakes");
               sound.playClick();
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${
               activeSection === "mistakes"
                 ? "bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs"
                 : "text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white"
             }`}
           >
-            <Hammer className="w-3.5 h-3.5" />
-            <span>Review Errors</span>
+            <Hammer className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Review Errors</span>
             {pendingMistakes.length > 0 && (
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold shrink-0 ${
                 activeSection === "mistakes"
                   ? "bg-white/25 text-white"
                   : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
@@ -179,10 +179,10 @@ export const AnalyticsView: React.FC = () => {
               Track mastery trends across subjects, error distribution, and historical accuracy trajectories.
             </p>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
               <button
                 onClick={handleExport}
-                className="btn-educhain-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-xs"
+                className="btn-educhain-secondary text-xs px-3 sm:px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-xs"
               >
                 <Download className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#22D3EE]" />
                 <span>Export Backup</span>
@@ -190,7 +190,7 @@ export const AnalyticsView: React.FC = () => {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-educhain-secondary text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-xs"
+                className="btn-educhain-secondary text-xs px-3 sm:px-3.5 py-2 rounded-xl flex items-center gap-1.5 font-bold shadow-xs"
               >
                 <Upload className="w-3.5 h-3.5 text-[#2563EB] dark:text-[#22D3EE]" />
                 <span>Import Backup</span>
@@ -212,20 +212,20 @@ export const AnalyticsView: React.FC = () => {
           )}
 
           {/* Top Level Metric Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <div className="p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
               <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Overall Accuracy</div>
               <div className="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{overallAccuracy}%</div>
               <div className="text-[11px] text-slate-500 dark:text-[#94A3B8] mt-1 font-mono">{totalQuestionsCorrect} / {totalQuestionsAnswered} correct</div>
             </div>
 
-            <div className="p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
+            <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
               <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Quizzes Done</div>
               <div className="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{totalQuizzesAttempted}</div>
               <div className="text-[11px] text-slate-500 dark:text-[#94A3B8] mt-1 font-mono">across all subjects</div>
             </div>
 
-            <div className="p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
+            <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
               <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Errors Mastered</div>
               <div className="font-heading text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                 {masteredMistakes.length}
@@ -233,7 +233,7 @@ export const AnalyticsView: React.FC = () => {
               <div className="text-[11px] text-slate-500 dark:text-[#94A3B8] mt-1 font-mono">{pendingMistakes.length} pending review</div>
             </div>
 
-            <div className="p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
+            <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-sm">
               <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Total XP</div>
               <div className="font-heading text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{xp.toLocaleString()}</div>
               <div className="text-[11px] text-slate-500 dark:text-[#94A3B8] mt-1 font-mono">scholar points</div>

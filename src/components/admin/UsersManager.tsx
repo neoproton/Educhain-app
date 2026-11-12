@@ -272,8 +272,8 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
     <div className="space-y-6 animate-in fade-in duration-200">
       
       {/* Overview Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Users className="w-4 h-4 text-cyan-500" />
             <span>Total Scholars</span>
@@ -283,42 +283,42 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+        <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Zap className="w-4 h-4 text-amber-500" />
             <span>Cumulative XP</span>
           </div>
-          <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
             {totalXP.toLocaleString()}
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+        <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Trophy className="w-4 h-4 text-emerald-500" />
             <span>Avg Accuracy</span>
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
             {avgAccuracy}%
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
+        <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm">
           <div className="flex items-center gap-2 text-neutral-400 text-xs font-mono mb-1">
             <Flame className="w-4 h-4 text-rose-500" />
             <span>Top Streak</span>
           </div>
-          <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-rose-600 dark:text-rose-400">
             {maxStreak} Days
           </div>
         </div>
       </div>
 
       {/* Control bar: Search, Filter, Sort, Export */}
-      <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4">
         
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 w-full md:max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
@@ -385,13 +385,13 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
           <table className="w-full text-left text-xs">
             <thead className="border-b border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] text-neutral-500 font-mono">
               <tr>
-                <th className="py-3 px-4">Scholar</th>
-                <th className="py-3 px-4">Grade</th>
-                <th className="py-3 px-4 text-center">XP Points</th>
-                <th className="py-3 px-4 text-center">Streak</th>
-                <th className="py-3 px-4 text-center">Quizzes &amp; Accuracy</th>
-                <th className="py-3 px-4 text-center">Stages</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Scholar</th>
+                <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Grade</th>
+                <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">XP Points</th>
+                <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Streak</th>
+                <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Quizzes &amp; Accuracy</th>
+                <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Stages</th>
+                <th className="py-3 px-3 sm:px-4 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.04]">
@@ -425,17 +425,17 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 font-mono">
+                    <td className="py-3 px-3 sm:py-3.5 sm:px-4 font-mono whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-white/5 text-neutral-700 dark:text-neutral-300">
                         {s.player_grade.replace("_", " ")}
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400">
+                    <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                       {s.xp.toLocaleString()} XP
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-mono font-medium">
+                    <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-center font-mono font-medium whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1 text-rose-500">
                         <Flame className="w-3.5 h-3.5 fill-current" />
                         <span>{s.current_streak}d</span>
@@ -445,7 +445,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-mono">
+                    <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-center font-mono whitespace-nowrap">
                       <div className="font-bold text-neutral-900 dark:text-white">
                         {s.accuracy}%
                       </div>
@@ -454,7 +454,7 @@ export const UsersManager: React.FC<UsersManagerProps> = ({ onNotify }) => {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                    <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-center font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                       {s.stages_completed} completed
                     </td>
 

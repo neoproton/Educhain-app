@@ -22,7 +22,7 @@ interface EditStageModalProps {
   stage: Stage | null;
   isOpen: boolean;
   onClose: () => void;
-  onSaved: (title: string) => void;
+  onSaved: (title: string, warning?: string) => void;
 }
 
 export const EditStageModal: React.FC<EditStageModalProps> = ({
@@ -61,7 +61,7 @@ function EditStageForm({
 }: {
   stage: Stage;
   onClose: () => void;
-  onSaved: (title: string) => void;
+  onSaved: (title: string, warning?: string) => void;
   allSubjects: any[];
   allClasses: any[];
   updateStage: any;
@@ -181,14 +181,22 @@ function EditStageForm({
     const res = await updateStage(stage.id, updatedData);
 
     if (chapterNumber !== "") {
-      useCurriculumStore.getState().setChapterNumber(subject, grade, chapter.trim(), Number(chapterNumber));
+      const chapRes = await useCurriculumStore.getState().setChapterNumber(subject, grade, chapter.trim(), Number(chapterNumber));
+      if (!chapRes.success && chapRes.error) {
+        setIsSaving(false);
+        setErrorMessage(chapRes.error);
+        return;
+      }
     }
 
     setIsSaving(false);
 
     if (res.success) {
       sound.playUnlock();
-      onSaved(updatedData.title || stage.title);
+      onSaved(
+        updatedData.title || stage.title,
+        res.cloudSynced === false ? res.error || "Saved locally only" : undefined
+      );
       onClose();
     } else {
       setErrorMessage(res.error || "Failed to update stage.");
@@ -200,17 +208,17 @@ function EditStageForm({
       <div className="relative w-full max-w-4xl max-h-[92dvh] sm:max-h-[90dvh] flex flex-col min-h-0 rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+        <div className="flex items-center justify-between gap-2 p-4 sm:p-6 border-b border-neutral-100 dark:border-white/5 bg-neutral-50/50 dark:bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
               <BookOpen className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                <span>Edit Stage:</span>
-                <span className="font-mono text-amber-600 dark:text-amber-400">{stage.title}</span>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white flex items-center gap-1.5 min-w-0">
+                <span className="shrink-0">Edit Stage:</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400 truncate">{stage.title}</span>
               </h3>
-              <p className="text-xs text-neutral-500">
+              <p className="text-[11px] sm:text-xs text-neutral-500 truncate">
                 Modify stage metadata, question prompts, options, and explanations
               </p>
             </div>
@@ -221,7 +229,7 @@ function EditStageForm({
               sound.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -229,17 +237,17 @@ function EditStageForm({
 
         {/* Error notification */}
         {errorMessage && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
+          <div className="mx-4 sm:mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5 sm:space-y-6">
           
           {/* Metadata Grid */}
-          <div className="p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-white/[0.02] space-y-4">
+          <div className="p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-white/[0.02] space-y-4">
             <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-500">
               Stage Classification
             </h4>

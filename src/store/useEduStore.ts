@@ -5,7 +5,9 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { GradeType, SubjectType, MistakeRecord, QuizAttemptRecord } from "@/types/curriculum";
 import { supabase } from "@/lib/supabase/client";
 import { UserState } from "@/types/user";
-import { RANKS, ACHIEVEMENTS } from "@/data/constants";
+import { ACHIEVEMENTS } from "@/data/constants";
+import { getXpProgress, getStreakProgress } from "@/lib/progression";
+import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { sound } from "@/lib/audio";
 
 interface EduStoreState extends UserState {
@@ -234,10 +236,11 @@ export const useEduStore = create<EduStoreState>()(
           const oldXp = state.xp;
           const newXp = Math.max(0, oldXp + amount);
 
-          // Check for Rank Level Up
-          const oldRank = RANKS.slice().reverse().find((r) => oldXp >= r.minXp);
-          const newRank = RANKS.slice().reverse().find((r) => newXp >= r.minXp);
-          if (oldRank && newRank && newRank.level > oldRank.level) {
+          // Check for Rank Level Up against dynamic XP rules
+          const xpLevels = useCurriculumStore.getState().getXpLevels();
+          const oldRank = getXpProgress(oldXp, xpLevels);
+          const newRank = getXpProgress(newXp, xpLevels);
+          if (newRank.levelNumber > oldRank.levelNumber) {
             sound.playUnlock();
           }
 
@@ -345,9 +348,10 @@ export const useEduStore = create<EduStoreState>()(
         const oldXp = state.xp;
         const totalXpGain = xpEarned + bonusAchievementXp;
         const newXp = oldXp + totalXpGain;
-        const oldRank = RANKS.slice().reverse().find((r) => oldXp >= r.minXp);
-        const newRank = RANKS.slice().reverse().find((r) => newXp >= r.minXp);
-        if (oldRank && newRank && newRank.level > oldRank.level) {
+        const xpLevels = useCurriculumStore.getState().getXpLevels();
+        const oldRank = getXpProgress(oldXp, xpLevels);
+        const newRank = getXpProgress(newXp, xpLevels);
+        if (newRank.levelNumber > oldRank.levelNumber) {
           sound.playUnlock();
         }
 
@@ -440,6 +444,13 @@ export const useEduStore = create<EduStoreState>()(
             nextAchievements.push("streak_titan");
             bonusXp += 150;
             sound.playAchievement();
+          }
+
+          const streakLevels = useCurriculumStore.getState().getStreakLevels();
+          const oldStreakTier = getStreakProgress(state.currentStreak, streakLevels);
+          const newStreakTier = getStreakProgress(nextStreak, streakLevels);
+          if (newStreakTier.levelNumber > oldStreakTier.levelNumber) {
+            sound.playUnlock();
           }
 
           set({

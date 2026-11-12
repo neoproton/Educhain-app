@@ -23,7 +23,7 @@ export const HowItWorksBanner: React.FC = () => {
   if (isDismissed) return null;
 
   return (
-    <div className="relative mb-8 p-6 rounded-3xl border border-slate-200/90 dark:border-[#263B5B] bg-white dark:bg-gradient-to-r dark:from-[#182438] dark:via-[#1c2c43] dark:to-[#182438] shadow-md dark:shadow-[0_8px_30px_rgba(16,24,39,0.35)] animate-in fade-in duration-300 overflow-hidden">
+    <div className="relative mb-6 sm:mb-8 p-4 sm:p-6 rounded-3xl border border-slate-200/90 dark:border-[#263B5B] bg-white dark:bg-gradient-to-r dark:from-[#182438] dark:via-[#1c2c43] dark:to-[#182438] shadow-md dark:shadow-[0_8px_30px_rgba(16,24,39,0.35)] animate-in fade-in duration-300 overflow-hidden">
       
       {/* Top subtle gradient accent border */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#2563EB] via-[#22D3EE] to-[#A78BFA]" />
@@ -32,17 +32,17 @@ export const HowItWorksBanner: React.FC = () => {
       <button
         onClick={handleDismiss}
         title="Dismiss guide"
-        className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors"
+        className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors"
       >
         <X className="w-4 h-4" />
       </button>
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="p-1.5 rounded-xl bg-gradient-to-br from-[#2563EB]/15 to-[#22D3EE]/15 border border-[#2563EB]/25 text-[#2563EB] dark:text-[#22D3EE]">
+      <div className="flex items-center gap-2 mb-4 pr-8">
+        <span className="p-1.5 rounded-xl bg-gradient-to-br from-[#2563EB]/15 to-[#22D3EE]/15 border border-[#2563EB]/25 text-[#2563EB] dark:text-[#22D3EE] shrink-0">
           <Compass className="w-4 h-4" />
         </span>
-        <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-[#F8FAFC]">
+        <h2 className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-[#F8FAFC]">
           How EduChain Works • 3 Quick Steps
         </h2>
       </div>

@@ -53,7 +53,7 @@ export const NextQuestHero: React.FC<NextQuestHeroProps> = ({
       
       {/* 1. Hero Next Recommended Quest Card */}
       {nextStage && (
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-[#263B5B] bg-white dark:bg-gradient-to-br dark:from-[#182438] dark:via-[#1e304b] dark:to-[#182438] p-6 sm:p-8 shadow-lg dark:shadow-[0_12px_40px_rgba(16,24,39,0.5)] transition-all card-lift">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-[#263B5B] bg-white dark:bg-gradient-to-br dark:from-[#182438] dark:via-[#1e304b] dark:to-[#182438] p-4 sm:p-8 shadow-lg dark:shadow-[0_12px_40px_rgba(16,24,39,0.5)] transition-all card-lift">
           
           {/* Atmospheric gradient glows */}
           <div 
@@ -62,20 +62,20 @@ export const NextQuestHero: React.FC<NextQuestHeroProps> = ({
           />
           <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none bg-[#2563EB]" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="max-w-xl space-y-2.5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 dark:border-cyan-400/30 bg-blue-50/80 dark:bg-[#223149]/80 text-[11px] font-mono text-[#2563EB] dark:text-[#22D3EE] shadow-2xs">
-                <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: nextSubMeta?.color || "#22D3EE" }} />
-                <span className="font-bold uppercase tracking-wider">{activeClassObj?.name || "Class"} Curriculum • Recommended Quest</span>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+            <div className="max-w-xl min-w-0 space-y-2.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 dark:border-cyan-400/30 bg-blue-50/80 dark:bg-[#223149]/80 text-[10px] sm:text-[11px] font-mono text-[#2563EB] dark:text-[#22D3EE] shadow-2xs max-w-full">
+                <span className="w-2 h-2 rounded-full animate-ping shrink-0" style={{ backgroundColor: nextSubMeta?.color || "#22D3EE" }} />
+                <span className="font-bold uppercase tracking-wider truncate">{activeClassObj?.name || "Class"} Curriculum • Recommended Quest</span>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
                 <span className="font-semibold text-slate-700 dark:text-slate-300">{nextSubMeta?.name}</span>
                 <span>•</span>
                 <span>Stage {nextStage.subjectStageNumber || 1}</span>
               </div>
 
-              <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-[#F8FAFC] leading-tight">
+              <h2 className="font-heading text-xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-[#F8FAFC] leading-tight">
                 {nextStage.title}
               </h2>
 
@@ -84,10 +84,10 @@ export const NextQuestHero: React.FC<NextQuestHeroProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
               <button
                 onClick={handleStartNext}
-                className="w-full sm:w-auto btn-educhain-primary px-8 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 shadow-[0_6px_25px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_30px_rgba(34,211,238,0.5)] active:scale-[0.98] transition-all"
+                className="w-full md:w-auto btn-educhain-primary px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 shadow-[0_6px_25px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_30px_rgba(34,211,238,0.5)] active:scale-[0.98] transition-all"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>Continue Quest (5 min)</span>
@@ -100,7 +100,7 @@ export const NextQuestHero: React.FC<NextQuestHeroProps> = ({
       {/* 2. Dead-Simple 1-Click Subject Switcher (Filtered by Student's Enrolled Class) */}
       <div className="pt-1">
         {classSubjects.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {classSubjects.map((sub) => {
               const isSelected = selectedSubject === sub.id;
               const subProg = subjectProgress[sub.id as SubjectType] || { completedStages: [] };
@@ -115,7 +115,7 @@ export const NextQuestHero: React.FC<NextQuestHeroProps> = ({
                     sound.playClick();
                     onSelectSubject(sub.id);
                   }}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-medium transition-all flex items-center gap-2.5 card-lift ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs font-medium transition-all flex items-center gap-2 sm:gap-2.5 card-lift max-w-full min-w-0 ${
                     isSelected
                       ? "bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-[0_4px_16px_rgba(37,99,235,0.4)] font-bold border-transparent"
                       : "bg-white dark:bg-[#182438] text-slate-700 dark:text-[#94A3B8] border border-slate-200 dark:border-[#263B5B] hover:text-slate-900 dark:hover:text-white hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40"

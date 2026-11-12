@@ -269,7 +269,7 @@ export default function Home() {
         /* ======================================================== */
         /* VIEW 2: STUDENT INTERACTIVE WORKSPACE */
         /* ======================================================== */
-        <div className="min-h-screen educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] flex flex-col relative selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
+        <div className="min-h-screen overflow-x-clip educhain-bg vercel-grid text-slate-900 dark:text-[#F8FAFC] flex flex-col relative selection:bg-[#2563EB] selection:text-white dark:selection:bg-[#22D3EE] dark:selection:text-[#101827] transition-colors duration-300">
           
           {/* Top subtle glow */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 glow-orb-cyan pointer-events-none -z-10" />
@@ -290,7 +290,7 @@ export default function Home() {
             {/* TAB 1: CURRICULUM CHAIN MAP */}
             {/* ======================================================== */}
             {activeTab === "map" && (
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 animate-in fade-in duration-300">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-10 animate-in fade-in duration-300">
                 
                 {/* 1. Quick Onboarding 3-Step Banner (Dismissible) */}
                 <HowItWorksBanner />
@@ -305,45 +305,45 @@ export default function Home() {
                 />
 
                 {/* 3. Hierarchical Classification: Single Subject Header -> Chapter (e.g. Chapter One) -> Stages */}
-                <div className="space-y-12">
+                <div className="space-y-8 sm:space-y-12">
                   {subjectGroups.length > 0 ? (
                     subjectGroups.map((group) => (
-                    <section key={group.subject} className="space-y-6">
+                    <section key={group.subject} className="space-y-5 sm:space-y-6">
                       
                       {/* Single, Clean Subject Header */}
-                      <div className="flex items-center justify-between pb-4 border-b border-slate-200/90 dark:border-[#263B5B]">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-200/90 dark:border-[#263B5B]">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                           <SleekBadgeIcon name={group.subject} color={group.subjectMeta?.color || "#38bdf8"} size="lg" />
-                          <div>
-                            <h2 className="font-heading text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                          <div className="min-w-0 flex-1">
+                            <h2 className="font-heading text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
                               {group.subjectMeta?.name || "Subject"}
                             </h2>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-1">
                               {group.subjectMeta?.description || "Curriculum Track"}
                             </p>
                           </div>
                         </div>
-                        <span className="text-[11px] font-mono font-bold px-3 py-1 rounded-full border border-blue-500/20 dark:border-cyan-400/25 bg-blue-50/70 dark:bg-[#182438] text-[#2563EB] dark:text-[#22D3EE] shadow-2xs">
+                        <span className="text-[11px] font-mono font-bold px-2.5 sm:px-3 py-1 rounded-full border border-blue-500/20 dark:border-cyan-400/25 bg-blue-50/70 dark:bg-[#182438] text-[#2563EB] dark:text-[#22D3EE] shadow-2xs shrink-0 whitespace-nowrap">
                           {group.totalStages} Stages
                         </span>
                       </div>
 
                       {/* Chapters inside this Subject */}
-                      <div className="space-y-8 pl-1 sm:pl-2">
+                      <div className="space-y-6 sm:space-y-8 pl-0 sm:pl-2">
                         {group.chapters.map((chapter) => (
-                          <div key={chapter.chapterName} className="space-y-4">
+                          <div key={chapter.chapterName} className="space-y-3.5 sm:space-y-4">
                             
                             {/* Chapter Header: Like "Chapter One • Matrices and Determinants" */}
-                            <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-[#223149]">
-                              <div className="flex items-center gap-2.5">
-                                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200/70 dark:border-[#223149]">
+                              <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+                                <span className="px-2 sm:px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs shrink-0 whitespace-nowrap">
                                   Chapter {chapter.chapterWord}
                                 </span>
-                                <h3 className="font-heading text-sm sm:text-[15px] font-bold text-slate-900 dark:text-white">
+                                <h3 className="font-heading text-sm sm:text-[15px] font-bold text-slate-900 dark:text-white min-w-0 break-words">
                                   {chapter.chapterName}
                                 </h3>
                               </div>
-                              <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-500">
+                              <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-500 shrink-0 whitespace-nowrap">
                                 {chapter.stages.length} {chapter.stages.length === 1 ? "Stage" : "Stages"}
                               </span>
                             </div>
@@ -408,15 +408,15 @@ export default function Home() {
           </main>
 
           {/* Footer */}
-          <footer className="border-t border-slate-200/80 dark:border-[#223149] py-8 bg-white/70 dark:bg-[#101827]/90 text-center text-xs text-slate-500 dark:text-[#94A3B8] font-mono transition-colors duration-200">
-            <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span>EduChain v2.0 • Easy Student Experience</span>
+          <footer className="border-t border-slate-200/80 dark:border-[#223149] py-6 sm:py-8 bg-white/70 dark:bg-[#101827]/90 text-center text-xs text-slate-500 dark:text-[#94A3B8] font-mono transition-colors duration-200">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                <span>EduChain • Easy Student Experience</span>
                 <span>•</span>
                 <span className="text-emerald-600 dark:text-emerald-400">Next.js 16 + Supabase</span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                 <Link
                   href="/admin"
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white transition-all shadow-xs flex items-center gap-1.5 font-bold"

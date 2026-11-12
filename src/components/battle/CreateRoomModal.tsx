@@ -119,16 +119,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       >
         
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-slate-100 dark:border-[#263B5B]/80 bg-slate-50/80 dark:bg-[#141f30]/80 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 text-white flex items-center justify-center shadow-md">
+        <div className="shrink-0 flex items-center justify-between gap-2 p-4 sm:p-6 sm:pb-4 border-b border-slate-100 dark:border-[#263B5B]/80 bg-slate-50/80 dark:bg-[#141f30]/80 backdrop-blur-sm z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 text-white flex items-center justify-center shadow-md shrink-0">
               <Swords className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-heading text-base font-bold text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <h3 className="font-heading text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
                 Create Battle Room
               </h3>
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8]">
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-[#94A3B8] truncate">
                 Configure quiz scope, timers, and challenge your peers
               </p>
             </div>
@@ -139,7 +139,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               sound.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -147,13 +147,13 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
         {/* Error alert */}
         {errorMessage && (
-          <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold">
+          <div className="mx-4 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold">
             {errorMessage}
           </div>
         )}
 
         {/* Scrollable Form */}
-        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 sm:space-y-5">
           
           {/* Room Name */}
           <div>

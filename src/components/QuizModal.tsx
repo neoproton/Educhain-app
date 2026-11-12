@@ -352,29 +352,29 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
         <div className="h-[2px] w-full bg-gradient-to-r from-[#2563EB] via-[#22D3EE] to-[#A78BFA] shrink-0" />
 
         {/* Pinned Top Header Bar */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#263B5B]/80 bg-slate-50/95 dark:bg-[#141f30]/95 backdrop-blur-sm z-10">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="shrink-0 flex items-center justify-between gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-[#263B5B]/80 bg-slate-50/95 dark:bg-[#141f30]/95 backdrop-blur-sm z-10">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span className="text-[11px] font-mono uppercase tracking-wider text-[#2563EB] dark:text-[#22D3EE] font-bold">
                 {stage.subjectName || "Challenge"}{stage.subjectStageNumber ? ` • Stage ${stage.subjectStageNumber}` : ""}
               </span>
               {stage.chapter && (
                 <>
                   <span className="text-slate-300 dark:text-white/20">•</span>
-                  <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold">
+                  <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-none">
                     {stage.chapter}
                   </span>
                 </>
               )}
             </div>
-            <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+            <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate">
               {stage.title}
             </h2>
           </div>
 
           <button
             onClick={() => { sound.playClick(); onClose(); }}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#223149] transition-colors cursor-pointer shrink-0"
             title="Close quiz"
           >
             <X className="w-5 h-5" />
@@ -387,7 +387,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
         {!isFinished ? (
           <div 
             ref={scrollAreaRef}
-            className="flex-1 overflow-y-auto overscroll-contain p-6 sm:p-8 space-y-6"
+            className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8 space-y-5 sm:space-y-6"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             
@@ -454,13 +454,13 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
                     key={idx}
                     disabled={isAnswered}
                     onClick={() => handleSelectAnswer(idx)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all group cursor-pointer disabled:cursor-default ${btnStyles}`}
+                    className={`w-full p-3 sm:p-4 rounded-2xl border text-left flex items-center justify-between gap-2 transition-all group cursor-pointer disabled:cursor-default ${btnStyles}`}
                   >
-                    <div className="flex items-center gap-3.5">
-                      <span className="w-7 h-7 rounded-xl bg-slate-200/80 dark:bg-[#223149] flex items-center justify-center text-xs font-mono font-bold text-slate-600 dark:text-slate-300 group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors">
+                    <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+                      <span className="w-7 h-7 rounded-xl bg-slate-200/80 dark:bg-[#223149] flex items-center justify-center text-xs font-mono font-bold text-slate-600 dark:text-slate-300 group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors shrink-0">
                         {optionLetter}
                       </span>
-                      <span className="text-sm font-medium">{opt}</span>
+                      <span className="text-[13px] sm:text-sm font-medium break-words">{opt}</span>
                     </div>
 
                     {isAnswered && isCorrect && (
@@ -476,7 +476,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
 
             {/* Explanation Box (Revealed on Answer) */}
             {isAnswered && (
-              <div className="p-4 rounded-2xl border border-blue-500/20 dark:border-[#22D3EE]/30 bg-blue-50/70 dark:bg-[#223149]/60 animate-in fade-in duration-200">
+              <div className="p-3.5 sm:p-4 rounded-2xl border border-blue-500/20 dark:border-[#22D3EE]/30 bg-blue-50/70 dark:bg-[#223149]/60 animate-in fade-in duration-200">
                 <div className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-[#2563EB] dark:text-[#22D3EE] font-bold mb-1">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Curriculum Insight</span>
@@ -488,15 +488,15 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
             )}
 
             {/* Navigation Action Area directly below options & explanation */}
-            <div className="pt-4 border-t border-slate-100 dark:border-[#263B5B]/60 flex items-center justify-between gap-4">
-              <div className="text-xs text-slate-400 dark:text-[#94A3B8] font-mono">
+            <div className="pt-4 border-t border-slate-100 dark:border-[#263B5B]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="hidden sm:block text-xs text-slate-400 dark:text-[#94A3B8] font-mono">
                 {isAnswered ? "Press [Enter] or Click Next" : "Press [1-4] or Click Option"}
               </div>
 
               <button
                 disabled={!isAnswered}
                 onClick={handleNextQuestion}
-                className={`px-6 py-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md ${
+                className={`w-full sm:w-auto px-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md ${
                   isAnswered
                     ? "btn-educhain-primary hover:gap-2.5 cursor-pointer shadow-blue-500/25 ring-2 ring-cyan-400/30"
                     : "bg-slate-100 dark:bg-[#223149] text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
@@ -512,7 +512,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
           /* ========================================================= */
           /* VIEW 2: RESULTS SCREEN WITH SCROLL */
           /* ========================================================= */
-          <div className="flex-1 overflow-y-auto overscroll-contain p-6 sm:p-10 text-center flex flex-col items-center">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-10 text-center flex flex-col items-center">
             <div className="my-auto w-full flex flex-col items-center">
 
             {topLeaderboardsReached.length > 0 && (
@@ -554,22 +554,22 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
             </p>
 
             {/* Metric Cards Grid */}
-            <div className="grid grid-cols-3 gap-3.5 w-full max-w-md mb-6">
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
-                <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Score</div>
-                <div className="font-heading text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{score}/{questions.length}</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3.5 w-full max-w-md mb-6">
+              <div className="p-2.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
+                <div className="text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Score</div>
+                <div className="font-heading text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{score}/{questions.length}</div>
               </div>
 
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
-                <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Accuracy</div>
-                <div className={`font-heading text-2xl font-extrabold mt-1 ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+              <div className="p-2.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
+                <div className="text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Accuracy</div>
+                <div className={`font-heading text-lg sm:text-2xl font-extrabold mt-1 ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                   {finalAccuracy}%
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
-                <div className="text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">XP Earned</div>
-                <div className="font-heading text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
+              <div className="p-2.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-slate-50 dark:bg-[#101827]/70 card-lift">
+                <div className="text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">XP Earned</div>
+                <div className="font-heading text-lg sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
                   +{Math.round((score / questions.length) * stage.xpReward)}
                 </div>
               </div>

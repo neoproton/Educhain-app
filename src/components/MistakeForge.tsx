@@ -69,10 +69,10 @@ export const MistakeForge: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 animate-in fade-in duration-300">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="p-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 shadow-xs">
@@ -91,14 +91,14 @@ export const MistakeForge: React.FC = () => {
         </div>
 
         {/* Stats Summary */}
-        <div className="flex items-center gap-3.5">
-          <div className="px-5 py-3 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-xs">
+        <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-3.5 w-full md:w-auto">
+          <div className="px-4 sm:px-5 py-3 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-xs">
             <div className="text-[10px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Pending</div>
             <div className="font-heading text-xl font-extrabold text-amber-600 dark:text-amber-400">
               {mistakes.filter((m) => !m.mastered).length}
             </div>
           </div>
-          <div className="px-5 py-3 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-xs">
+          <div className="px-4 sm:px-5 py-3 rounded-2xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] card-lift shadow-xs">
             <div className="text-[10px] font-mono text-slate-500 dark:text-[#94A3B8] uppercase font-bold">Mastered</div>
             <div className="font-heading text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
               {mistakes.filter((m) => m.mastered).length}
@@ -177,31 +177,31 @@ export const MistakeForge: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`p-6 rounded-3xl border transition-all duration-300 card-lift ${
+                className={`p-4 sm:p-6 rounded-3xl border transition-all duration-300 card-lift ${
                   item.mastered
                     ? "bg-emerald-50/50 dark:bg-[#142323] border-emerald-500/30"
                     : "bg-white dark:bg-[#182438] border-slate-200 dark:border-[#263B5B] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 shadow-sm"
                 }`}
               >
                 {/* Meta Row */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span
-                      className="w-2.5 h-2.5 rounded-full ring-4 ring-slate-100 dark:ring-[#223149]"
+                      className="w-2.5 h-2.5 rounded-full ring-4 ring-slate-100 dark:ring-[#223149] shrink-0"
                       style={{ backgroundColor: meta?.color || "#22D3EE" }}
                     />
-                    <span className="text-[11px] font-mono uppercase font-bold text-slate-500 dark:text-[#94A3B8]">
+                    <span className="text-[11px] font-mono uppercase font-bold text-slate-500 dark:text-[#94A3B8] truncate">
                       {allSubjects.find((s) => s.id === item.subject)?.name || meta?.name || "Track"} • {stageTitleMap.get(String(item.stageId)) || (typeof item.stageId === "number" ? `Stage ${item.stageId}` : "Practice")}
                     </span>
                   </div>
 
                   {item.mastered ? (
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold shrink-0 whitespace-nowrap">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Mastered</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold shrink-0 whitespace-nowrap">
                       <AlertCircle className="w-3.5 h-3.5" />
                       <span>Needs Practice ({item.timesMissed}x)</span>
                     </span>

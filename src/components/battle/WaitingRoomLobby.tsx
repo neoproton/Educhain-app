@@ -54,13 +54,13 @@ export const WaitingRoomLobby: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
       
       {/* Top Bar with Leave */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={() => {
             sound.playClick();
             leaveRoom();
           }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-white/10 bg-white/70 dark:bg-[#182438]/80 hover:bg-neutral-100 dark:hover:bg-[#223149] text-neutral-700 dark:text-neutral-200 transition-all shadow-sm"
+          className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-white/10 bg-white/70 dark:bg-[#182438]/80 hover:bg-neutral-100 dark:hover:bg-[#223149] text-neutral-700 dark:text-neutral-200 transition-all shadow-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Leave Room</span>
@@ -75,15 +75,15 @@ export const WaitingRoomLobby: React.FC = () => {
       </div>
 
       {/* Main Room Card */}
-      <div className="relative rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl p-6 sm:p-8 space-y-6 overflow-hidden">
+      <div className="relative rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#182438] shadow-2xl p-4 sm:p-8 space-y-5 sm:space-y-6 overflow-hidden">
         {/* Subtle decorative gradient overlay */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-blue-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
         {/* Room Header & Code Banner */}
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-neutral-100 dark:border-white/10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-neutral-100 dark:border-white/10">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-[11px] font-mono uppercase px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25 font-bold shadow-xs">
                 {currentRoom.mode === "duel" ? "⚔️ 1v1 Duel" : "👥 Party Mode"}
               </span>
@@ -91,23 +91,23 @@ export const WaitingRoomLobby: React.FC = () => {
                 Host: <strong className="text-neutral-900 dark:text-neutral-200">{currentRoom.hostName}</strong>
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight font-space-grotesk">
+            <h2 className="text-lg sm:text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight font-space-grotesk break-words">
               {currentRoom.roomName}
             </h2>
           </div>
 
           {/* Big Room Code Box */}
-          <div className="flex items-center gap-3 bg-neutral-100 dark:bg-[#101827]/80 p-3 pl-4 rounded-2xl border border-neutral-200 dark:border-white/10 shadow-inner">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 bg-neutral-100 dark:bg-[#101827]/80 p-3 sm:pl-4 rounded-2xl border border-neutral-200 dark:border-white/10 shadow-inner">
             <div>
               <div className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 uppercase tracking-wider font-semibold">Room Code</div>
-              <div className="text-xl sm:text-2xl font-mono font-extrabold tracking-widest bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-400 bg-clip-text text-transparent">
+              <div className="text-lg sm:text-2xl font-mono font-extrabold tracking-widest bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-400 bg-clip-text text-transparent">
                 {currentRoom.roomCode}
               </div>
             </div>
 
             <button
               onClick={copyInvite}
-              className="ml-2 px-3.5 py-2.5 rounded-xl text-xs font-bold btn-educhain-primary flex items-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="sm:ml-2 px-3.5 py-2.5 rounded-xl text-xs font-bold btn-educhain-primary flex items-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-white" />}
               <span>{copiedLink ? "Link Copied!" : "Share Link"}</span>

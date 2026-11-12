@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
 import { useEduStore } from "@/store/useEduStore";
-import { BENCHMARK_PLAYERS, RANKS } from "@/data/constants";
+import { BENCHMARK_PLAYERS } from "@/data/constants";
+import { useCurriculumStore } from "@/store/useCurriculumStore";
+import { getXpProgress, getStreakProgress, normalizeXpLevels, normalizeStreakLevels } from "@/lib/progression";
 import { LeaderboardScholar } from "@/types/user";
 import { ScholarAvatar } from "@/components/SleekIcon";
 import { sound } from "@/lib/audio";
@@ -19,9 +21,8 @@ const CATEGORY_META: Record<Category, { label: string; crownTitle: string; unit:
   accuracy: { label: "Accuracy", crownTitle: "Precision Sharpshooter", unit: "%" },
 };
 
-const getRankName = (points: number): string => {
-  const r = RANKS.slice().reverse().find((rank) => points >= rank.minXp);
-  return r ? r.name : "Novice";
+const getRankName = (points: number, xpLevels?: ReturnType<ReturnType<typeof useCurriculumStore.getState>["getXpLevels"]>): string => {
+  return getXpProgress(points, xpLevels).currentLevel.name;
 };
 
 export const Leaderboard: React.FC = () => {
@@ -41,6 +42,10 @@ export const Leaderboard: React.FC = () => {
   } = useEduStore();
 
   const [activeCategory, setActiveCategory] = useState<Category>("xp");
+  const rawXpLevels = useCurriculumStore((s) => s.xpLevels);
+  const rawStreakLevels = useCurriculumStore((s) => s.streakLevels);
+  const xpLevels = useMemo(() => normalizeXpLevels(rawXpLevels), [rawXpLevels]);
+  const streakLevels = useMemo(() => normalizeStreakLevels(rawStreakLevels), [rawStreakLevels]);
   const [cloudScholars, setCloudScholars] = useState<LeaderboardScholar[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -55,7 +60,7 @@ export const Leaderboard: React.FC = () => {
     ? Math.round((totalQuestionsCorrect / totalQuestionsAnswered) * 100)
     : 0;
 
-  const currentRankName = getRankName(xp);
+  const currentRankName = getRankName(xp, xpLevels);
 
   const fireCrownCheer = useCallback(() => {
     sound.playChampion();
@@ -173,7 +178,9 @@ export const Leaderboard: React.FC = () => {
   const allScholars = useMemo(() => {
     const rawBase = cloudScholars.length > 0 ? cloudScholars : BENCHMARK_PLAYERS;
     const overlaidBase = rawBase.map((s) => {
-      if (!s.isCurrentUser) return s;
+      if (!s.isCurrentUser) {
+        return { ...s, rank: getRankName(s.xp, xpLevels) };
+      }
       const mergedXp = Math.max(s.xp, xp);
       const mergedStages = Math.max(s.stages, completedStages.length);
       const mergedStreak = Math.max(s.streak, currentStreak);
@@ -184,7 +191,7 @@ export const Leaderboard: React.FC = () => {
         name: name || s.name,
         avatar: avatar || s.avatar,
         xp: mergedXp,
-        rank: getRankName(mergedXp),
+        rank: getRankName(mergedXp, xpLevels),
         stages: mergedStages,
         streak: mergedStreak,
         accuracy: mergedAccuracy,
@@ -241,6 +248,7 @@ export const Leaderboard: React.FC = () => {
     avatar,
     currentUserId,
     currentRankName,
+    xpLevels,
   ]);
 
   const categoryMeta = CATEGORY_META;
@@ -342,10 +350,10 @@ export const Leaderboard: React.FC = () => {
       )}
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-slate-200/90 dark:border-[#263B5B]">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <span className="p-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-xs">
+            <span className="p-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-xs shrink-0">
               <Trophy className="w-4 h-4" />
             </span>
             <span className="text-xs font-mono uppercase tracking-widest text-[#2563EB] dark:text-[#22D3EE] font-bold">
@@ -353,7 +361,7 @@ export const Leaderboard: React.FC = () => {
             </span>
 
             {/* Live Database Status Indicator */}
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-slate-100 dark:bg-[#182438] border border-slate-200 dark:border-[#263B5B]">
+            <div className="flex flex-wrap items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-slate-100 dark:bg-[#182438] border border-slate-200 dark:border-[#263B5B]">
               {isLiveConnected ? (
                 <>
                   <span className="relative flex h-2 w-2">
@@ -382,7 +390,7 @@ export const Leaderboard: React.FC = () => {
         </div>
 
         {/* Controls: Refresh & Category Tabs */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Refresh Button */}
           <button
             onClick={() => {
@@ -391,14 +399,14 @@ export const Leaderboard: React.FC = () => {
             }}
             disabled={isRefreshing}
             title="Refresh Leaderboard"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] text-xs font-bold text-slate-700 dark:text-[#F8FAFC] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all disabled:opacity-50 shadow-xs card-lift cursor-pointer"
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] text-xs font-bold text-slate-700 dark:text-[#F8FAFC] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all disabled:opacity-50 shadow-xs card-lift cursor-pointer"
           >
             <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-500" : ""}`} />
             <span className="hidden sm:inline">{isRefreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
 
           {/* Category Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1 border border-slate-200 dark:border-[#263B5B] rounded-2xl p-1 bg-white dark:bg-[#182438] shadow-xs">
+          <div className="grid grid-cols-2 sm:flex items-center gap-1 border border-slate-200 dark:border-[#263B5B] rounded-2xl p-1 bg-white dark:bg-[#182438] shadow-xs flex-1 sm:flex-initial">
             {[
               { id: "xp", label: "XP Points", icon: Zap },
               { id: "stages", label: "Stages", icon: Award },
@@ -414,7 +422,7 @@ export const Leaderboard: React.FC = () => {
                     setActiveCategory(cat.id as Category);
                     sound.playClick();
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     isActive
                       ? "bg-gradient-to-r from-[#2563EB] to-[#22D3EE] text-white shadow-xs font-bold"
                       : "text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white"
@@ -541,13 +549,13 @@ export const Leaderboard: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 dark:border-[#263B5B]/80 bg-slate-50/80 dark:bg-[#141f30] text-slate-500 dark:text-[#94A3B8] font-mono font-bold">
               <tr>
-                <th className="py-3.5 px-4 w-12 text-center">#</th>
-                <th className="py-3.5 px-4">Scholar</th>
-                <th className="py-3.5 px-4">Rank</th>
-                <th className="py-3.5 px-4 text-right">Stages</th>
-                <th className="py-3.5 px-4 text-right">Streak</th>
-                <th className="py-3.5 px-4 text-right">Accuracy</th>
-                <th className="py-3.5 px-4 text-right">XP</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 w-10 sm:w-12 text-center">#</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4">Scholar</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 whitespace-nowrap">Rank</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Stages</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Streak</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">Accuracy</th>
+                <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right whitespace-nowrap">XP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#263B5B]/40">
@@ -560,38 +568,48 @@ export const Leaderboard: React.FC = () => {
                       : "hover:bg-slate-50/80 dark:hover:bg-[#1e2f47]"
                   }`}
                 >
-                  <td className="py-3.5 px-4 text-center font-mono text-slate-400 dark:text-slate-500 font-bold">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-center font-mono text-slate-400 dark:text-slate-500 font-bold whitespace-nowrap">
                     {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
                   </td>
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-2.5">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4">
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                       <ScholarAvatar name={scholar.name} avatar={scholar.avatar} size="md" />
-                      <span className="text-slate-900 dark:text-white font-semibold">{scholar.name}</span>
+                      <span className="text-slate-900 dark:text-white font-semibold truncate max-w-[120px] sm:max-w-none">{scholar.name}</span>
                       {idx === 0 && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400/50 shrink-0" />
                       )}
                       {scholar.isCurrentUser && (
-                        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40">
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#2563EB]/20 text-[#2563EB] dark:bg-[#22D3EE]/20 dark:text-[#22D3EE] font-bold border border-[#2563EB]/30 dark:border-[#22D3EE]/40 shrink-0">
                           You
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-slate-600 dark:text-[#94A3B8] font-mono">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-slate-600 dark:text-[#94A3B8] font-mono whitespace-nowrap">
                     {scholar.rank}
                   </td>
-                  <td className="py-3.5 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
                     {scholar.stages}
                   </td>
-                  <td className="py-3.5 px-4 text-right font-mono text-orange-600 dark:text-orange-400 font-bold">
-                    {scholar.streak}d
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono text-orange-600 dark:text-orange-400 font-bold whitespace-nowrap">
+                    <div className="inline-flex items-center justify-end gap-1.5">
+                      <span>{scholar.streak}d</span>
+                      {(() => {
+                        const streakTier = getStreakProgress(scholar.streak, streakLevels).currentLevel;
+                        return streakTier ? (
+                          <span className="hidden md:inline text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-300 border border-orange-500/20">
+                            {streakTier.name}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                   </td>
-                  <td className="py-3.5 px-4 text-right font-mono">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono whitespace-nowrap">
                     <span className={scholar.accuracy >= 90 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-slate-700 dark:text-slate-300"}>
                       {scholar.accuracy}%
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
+                  <td className="py-3 px-2.5 sm:py-3.5 sm:px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
                     {scholar.xp.toLocaleString()}
                   </td>
                 </tr>

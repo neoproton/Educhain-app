@@ -45,7 +45,7 @@ export const StageCard: React.FC<StageCardProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`group relative rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between card-lift ${
+      className={`group relative rounded-2xl p-4 sm:p-5 border transition-all duration-300 flex flex-col justify-between card-lift ${
         isUnlocked
           ? "cursor-pointer bg-white dark:bg-[#182438] hover:bg-slate-50/80 dark:hover:bg-[#1f304b] border-slate-200 dark:border-[#263B5B] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/50 shadow-sm dark:shadow-[0_4px_20px_rgba(16,24,39,0.35)] hover:shadow-xl dark:hover:shadow-[0_12px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(34,211,238,0.12)]"
           : "opacity-45 bg-slate-100/60 dark:bg-[#131c2b] border-slate-200/60 dark:border-[#1d2a3f] cursor-not-allowed select-none"
@@ -53,13 +53,13 @@ export const StageCard: React.FC<StageCardProps> = ({
     >
       <div>
         {/* Top Row: Subject & Stage #, Difficulty, XP */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0 ring-4 ring-slate-100 dark:ring-[#223149] shadow-xs"
               style={{ backgroundColor: subColor }}
             />
-            <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-500 dark:text-[#94A3B8]">
+            <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-500 dark:text-[#94A3B8] truncate">
               {subName} • Stage {stage.subjectStageNumber || (typeof stage.id === "number" ? stage.id : 1)}
             </span>
           </div>
