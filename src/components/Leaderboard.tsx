@@ -184,7 +184,7 @@ export const Leaderboard: React.FC = () => {
       }
       const mergedXp = Math.max(s.xp, xp);
       const mergedStages = Math.max(s.stages, completedStages.length);
-      const mergedStreak = Math.max(s.streak, currentStreak);
+      const mergedStreak = currentStreak;
       const mergedQuizzes = Math.max(s.quizzes, totalQuizzesAttempted);
       const mergedAccuracy = totalQuizzesAttempted > 0 ? userAccuracy : s.accuracy;
       return {

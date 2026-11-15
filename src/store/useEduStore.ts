@@ -43,11 +43,30 @@ interface EduStoreState extends UserState {
   }) => void;
   masterMistake: (mistakeId: string) => void;
   checkStreak: () => void;
+  validateStreakOnLoad: () => void;
   toggleTheme: () => void;
   resetProgress: () => void;
   exportData: () => string;
   importData: (jsonData: string) => boolean;
 }
+
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export const getDaysDifference = (fromIsoDate: string, toIsoDate: string): number => {
+  const fromParts = fromIsoDate.split("-").map(Number);
+  const toParts = toIsoDate.split("-").map(Number);
+  if (fromParts.length !== 3 || toParts.length !== 3 || fromParts.some(Number.isNaN) || toParts.some(Number.isNaN)) {
+    return 1;
+  }
+  const fromUtc = Date.UTC(fromParts[0], fromParts[1] - 1, fromParts[2]);
+  const toUtc = Date.UTC(toParts[0], toParts[1] - 1, toParts[2]);
+  return Math.round((toUtc - fromUtc) / 86400000);
+};
 
 const DEFAULT_STATE: UserState = {
   id: null,
@@ -107,8 +126,32 @@ function syncEduProfileToCloud(get: () => EduStoreState) {
           subject_progress: current.subjectProgress,
           completed_stages_list: current.completedStages.filter((id) => typeof id === "number"),
           unlocked_achievements: current.unlockedAchievements,
+          last_active_date: current.lastActiveDate,
         })
-        .then(() => {});
+        .then(({ error }) => {
+          if (error && error.message?.includes("last_active_date")) {
+            supabase
+              .from("profiles")
+              .upsert({
+                id: session.user.id,
+                player_name: current.name,
+                player_avatar: current.avatar,
+                player_grade: current.grade,
+                xp: current.xp,
+                stages_completed: current.completedStages.length,
+                current_streak: current.currentStreak,
+                longest_streak: current.longestStreak,
+                accuracy,
+                quizzes_attempted: current.totalQuizzesAttempted,
+                questions_answered: current.totalQuestionsAnswered,
+                questions_correct: current.totalQuestionsCorrect,
+                subject_progress: current.subjectProgress,
+                completed_stages_list: current.completedStages.filter((id) => typeof id === "number"),
+                unlocked_achievements: current.unlockedAchievements,
+              })
+              .then(() => {});
+          }
+        });
     }
   });
 }
@@ -399,27 +442,47 @@ export const useEduStore = create<EduStoreState>()(
         }
       },
 
-      checkStreak: () => {
-        const today = new Date().toLocaleDateString("en-CA"); // Local YYYY-MM-DD
+      validateStreakOnLoad: () => {
         const state = get();
+        if (!state.lastActiveDate) return;
+        const today = getLocalDateString();
+        if (state.lastActiveDate === today) return;
+
+        const diffDays = getDaysDifference(state.lastActiveDate, today);
+        // diffDays === 1 means active yesterday, streak still alive waiting for today's quest
+        if (diffDays <= 1) return;
+
+        // diffDays > 1 means missed yesterday or more, streak expired
+        if (state.currentStreak > 0) {
+          set({ currentStreak: 0 });
+          syncEduProfileToCloud(get);
+        }
+      },
+
+      checkStreak: () => {
+        const today = getLocalDateString();
+        const state = get();
+
+        // If no prior lastActiveDate recorded:
         if (!state.lastActiveDate) {
-          set({ lastActiveDate: today, currentStreak: 1, longestStreak: Math.max(1, state.longestStreak) });
+          const nextStreak = state.currentStreak > 0 ? state.currentStreak : 1;
+          const nextLongest = Math.max(nextStreak, state.longestStreak);
+          set({
+            lastActiveDate: today,
+            currentStreak: nextStreak,
+            longestStreak: nextLongest,
+          });
+          syncEduProfileToCloud(get);
           return;
         }
 
+        // If already completed a quest today, preserve streak (do not double count)
         if (state.lastActiveDate === today) return;
 
-        const parseDayUtc = (isoDay: string) => {
-          const parts = isoDay.split("-").map(Number);
-          if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-          return Date.UTC(parts[0], parts[1] - 1, parts[2]);
-        };
-
-        const lastMs = parseDayUtc(state.lastActiveDate);
-        const currMs = parseDayUtc(today);
-        const diffDays = lastMs !== null && currMs !== null ? Math.round((currMs - lastMs) / 86400000) : 1;
+        const diffDays = getDaysDifference(state.lastActiveDate, today);
 
         if (diffDays === 1) {
+          // Consecutive calendar day! Streak extended!
           const nextStreak = state.currentStreak + 1;
           const nextLongest = Math.max(nextStreak, state.longestStreak);
           const nextAchievements = [...state.unlockedAchievements];
@@ -452,7 +515,12 @@ export const useEduStore = create<EduStoreState>()(
           });
           syncEduProfileToCloud(get);
         } else if (diffDays > 1) {
-          set({ currentStreak: 1, lastActiveDate: today });
+          // Missed one or more days, start fresh streak of 1 today
+          set({
+            currentStreak: 1,
+            longestStreak: Math.max(1, state.longestStreak),
+            lastActiveDate: today,
+          });
           syncEduProfileToCloud(get);
         }
       },
@@ -502,6 +570,9 @@ export const useEduStore = create<EduStoreState>()(
       onRehydrateStorage: () => (state) => {
         if (state?.settings) {
           sound.syncSettings(state.settings.soundEnabled, state.settings.volume);
+        }
+        if (state?.validateStreakOnLoad) {
+          state.validateStreakOnLoad();
         }
       },
     }

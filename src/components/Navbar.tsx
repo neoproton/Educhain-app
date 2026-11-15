@@ -86,10 +86,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Top subtle gradient accent line */}
       <div className="h-[2px] w-full bg-gradient-to-r from-[#2563EB] via-[#22D3EE] to-[#A78BFA] opacity-80" />
 
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-5 lg:px-6 xl:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-3">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-6 xl:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Brand / Logo */}
-        <div className="flex items-center gap-2.5 lg:gap-3 xl:gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-3 min-w-0">
           <button 
             onClick={() => { setActiveTab("map"); sound.playClick(); }}
             className="flex items-center gap-2 sm:gap-2.5 text-left focus:outline-none group shrink-0 whitespace-nowrap"
@@ -104,18 +104,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 priority
               />
             </div>
-            <div className="flex flex-col shrink-0">
-              <span className="font-heading font-extrabold tracking-tight text-slate-900 dark:text-[#F8FAFC] text-[13px] sm:text-base group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors whitespace-nowrap">
-                EduChain
-              </span>
-              <span className="text-[11px] text-slate-500 dark:text-[#94A3B8] -mt-0.5 hidden md:inline lg:hidden 2xl:inline font-normal whitespace-nowrap">
-                Learn • Connect • Unlock
-              </span>
-            </div>
+            <span className="font-heading font-extrabold tracking-tight text-slate-900 dark:text-[#F8FAFC] text-[14px] sm:text-base group-hover:text-[#2563EB] dark:group-hover:text-[#22D3EE] transition-colors whitespace-nowrap">
+              EduChain
+            </span>
           </button>
 
           {/* Navigation Tabs (Desktop) */}
-          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 border-l border-slate-200 dark:border-[#223149] pl-2.5 xl:pl-4 ml-0.5 shrink-0">
+          <nav className="hidden lg:flex items-center gap-1 border-l border-slate-200 dark:border-[#223149] pl-2.5 xl:pl-3 ml-0.5 shrink-0">
             {[
               { id: "map", label: "My Quests", icon: BookOpen },
               { id: "leaderboard", label: "Leaderboard", icon: Trophy },
@@ -144,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[#2563EB] dark:text-[#22D3EE]" : ""}`} />
                   <span>{item.label}</span>
                   {item.badge !== null && item.badge !== undefined && (
-                    <span className="ml-0.5 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    <span className="ml-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                       {item.badge}
                     </span>
                   )}
@@ -155,11 +150,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Link
               href="/battle"
               onClick={() => sound.playClick()}
-              className="relative flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 text-xs font-semibold rounded-xl transition-all text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#182438] whitespace-nowrap shrink-0"
+              className="relative flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 text-xs font-semibold rounded-xl transition-all text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-[#182438] whitespace-nowrap shrink-0 group"
             >
-              <Swords className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <Swords className="w-3.5 h-3.5 text-rose-500 shrink-0 group-hover:scale-110 transition-transform" />
               <span>Multiplayer</span>
-              <span className="ml-0.5 text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.3)]">
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.3)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                 LIVE
               </span>
             </Link>
@@ -178,15 +174,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
             aria-label={`Current Streak: ${currentStreak} days${streakProgress.currentLevel ? ` (${streakProgress.currentLevel.name})` : ""}. Click for Streak Levels.`}
             title={`Streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}${streakProgress.currentLevel ? ` • ${streakProgress.currentLevel.name}` : ""} (Click to view Streak Levels)`}
-            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 rounded-xl border border-orange-500/25 bg-orange-500/10 hover:bg-orange-500/20 hover:border-orange-500/45 text-[11px] sm:text-xs font-mono text-orange-600 dark:text-orange-400 font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl border text-[11px] sm:text-xs font-mono font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap ${
+              currentStreak > 0
+                ? "border-orange-500/25 bg-orange-500/10 hover:bg-orange-500/20 hover:border-orange-500/45 text-orange-600 dark:text-orange-400"
+                : "border-slate-300/80 dark:border-slate-700/80 bg-slate-100/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 hover:border-orange-500/30"
+            }`}
           >
-            <Flame className="w-3.5 h-3.5 fill-orange-500/30 text-orange-500 dark:text-orange-400 animate-pulse shrink-0" />
+            <Flame className={`w-3.5 h-3.5 shrink-0 ${currentStreak > 0 ? "fill-orange-500/30 text-orange-500 dark:text-orange-400 animate-pulse" : "text-slate-400"}`} />
             <span>{currentStreak}d</span>
-            {streakProgress.currentLevel && (
-              <span className="hidden md:inline lg:hidden 2xl:inline text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded-md bg-orange-500/15 text-orange-700 dark:text-orange-300 leading-none">
-                {streakProgress.currentLevel.name}
-              </span>
-            )}
           </button>
 
           {/* XP Level Button */}
@@ -198,7 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
             aria-label={`Total Experience Points: ${xp} XP (${currentRank.name}). Click for XP Levels.`}
             title={`${xp} XP • ${currentRank.name}${xpProgress.nextLevel ? ` (${xpProgress.remaining} XP to ${xpProgress.nextLevel.name})` : " (Max Level)"} — Click to view XP Levels`}
-            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 rounded-xl border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/45 text-[11px] sm:text-xs font-mono text-amber-600 dark:text-amber-400 font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-500/45 text-[11px] sm:text-xs font-mono text-amber-600 dark:text-amber-400 font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
           >
             <Zap className="w-3.5 h-3.5 fill-amber-500/30 text-amber-500 dark:text-amber-400 shrink-0" />
             <span>{xp} <span className="hidden sm:inline">XP</span></span>
@@ -253,10 +248,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-2 p-0.5 sm:pl-1.5 sm:pr-2.5 xl:pr-3 sm:py-1 rounded-full border border-slate-200 dark:border-[#263B5B] bg-white dark:bg-[#182438] hover:border-[#2563EB]/50 dark:hover:border-[#22D3EE]/50 hover:shadow-[0_0_16px_rgba(37,99,235,0.25)] transition-all text-xs font-medium shadow-xs shrink-0 whitespace-nowrap"
           >
             <ScholarAvatar name={name} avatar={avatar} size="sm" />
-            <span className="hidden sm:inline font-mono text-slate-800 dark:text-[#F8FAFC] font-semibold text-xs truncate max-w-[76px] md:max-w-[110px] lg:max-w-[84px] xl:max-w-[110px] 2xl:max-w-[140px]">
+            <span className="hidden sm:inline font-mono text-slate-800 dark:text-[#F8FAFC] font-semibold text-xs truncate max-w-[76px] sm:max-w-[100px] xl:max-w-[120px]">
               {name || (isGuest ? "Guest Explorer" : "Scholar")}
             </span>
-            <span className="hidden md:inline lg:hidden 2xl:inline text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-[#2563EB]/20 dark:to-[#22D3EE]/20 text-[#2563EB] dark:text-[#22D3EE] border border-[#2563EB]/20 dark:border-[#22D3EE]/30 font-mono font-semibold">
+            <span className="hidden xl:inline text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-[#2563EB]/20 dark:to-[#22D3EE]/20 text-[#2563EB] dark:text-[#22D3EE] border border-[#2563EB]/20 dark:border-[#22D3EE]/30 font-mono font-semibold">
               {isGuest && xp === 0 ? "Guest" : currentRank.name}
             </span>
           </button>

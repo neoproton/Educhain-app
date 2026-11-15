@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useEduStore } from "@/store/useEduStore";
+import { useEduStore, getLocalDateString } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { getXpProgress, getStreakProgress } from "@/lib/progression";
 import { sound } from "@/lib/audio";
@@ -38,6 +38,8 @@ export const ProgressionModal: React.FC<ProgressionModalProps> = ({
 
   const [tab, setTab] = useState<"streak" | "xp">(initialTab);
   const { xp, currentStreak, longestStreak, lastActiveDate, completedStages } = useEduStore();
+  const today = getLocalDateString();
+  const isExtendedToday = lastActiveDate === today;
   const { getXpLevels, getStreakLevels } = useCurriculumStore();
 
   const xpLevels = getXpLevels();
@@ -262,6 +264,24 @@ export const ProgressionModal: React.FC<ProgressionModalProps> = ({
                     />
                   </div>
                 </div>
+
+                {/* Daily Streak Status Pill */}
+                {isExtendedToday ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
+                    <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Streak secured for today! Complete another quest tomorrow to extend it.</span>
+                  </div>
+                ) : currentStreak > 0 ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-medium">
+                    <Flame className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
+                    <span>Streak active! Complete a quest today to reach {currentStreak + 1} days.</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium">
+                    <Flame className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Start your streak today! Complete any quest to light your flame.</span>
+                  </div>
+                )}
               </div>
 
               {/* Streak Tier Ladder */}

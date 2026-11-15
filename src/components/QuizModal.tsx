@@ -38,7 +38,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
 
-  const { recordQuizAttempt } = useEduStore();
+  const { recordQuizAttempt, currentStreak } = useEduStore();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -575,8 +575,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({ stage, onClose, onNextStag
               </div>
             </div>
 
-            {(bestCombo >= 3 || fastAnswersCount > 0) && (
+            {(currentStreak > 0 || bestCombo >= 3 || fastAnswersCount > 0) && (
               <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+                {currentStreak > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 text-[11px] font-mono font-bold shadow-xs">
+                    <Flame className="w-3.5 h-3.5 fill-orange-500/30 text-orange-500 dark:text-orange-400 animate-pulse" />
+                    <span>{currentStreak}d Streak</span>
+                  </span>
+                )}
                 {bestCombo >= 3 && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-[11px] font-mono font-bold">
                     <Flame className="w-3.5 h-3.5 fill-current" />

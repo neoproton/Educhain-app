@@ -110,6 +110,10 @@ export default function Home() {
         .maybeSingle();
 
       if (profile) {
+        const lastActiveDate =
+          (profile as { last_active_date?: string }).last_active_date ||
+          (profile.updated_at ? profile.updated_at.split("T")[0] : undefined);
+
         loadCloudProfile({
           id: user.id,
           name: profile.player_name || meta.name || "Scholar",
@@ -118,6 +122,7 @@ export default function Home() {
           xp: profile.xp || 0,
           currentStreak: profile.current_streak || 0,
           longestStreak: profile.longest_streak || 0,
+          lastActiveDate,
           completedStages: profile.completed_stages_list || [],
           unlockedStages: profile.subject_progress
             ? Object.values(profile.subject_progress as Record<string, { unlockedStages?: number[] }>).flatMap((s) => s.unlockedStages || [])
@@ -128,6 +133,7 @@ export default function Home() {
           totalQuestionsAnswered: profile.questions_answered || 0,
           totalQuestionsCorrect: profile.questions_correct || 0,
         });
+        useEduStore.getState().validateStreakOnLoad();
       } else {
         const fallbackName = meta.name || "Scholar";
         const fallbackAvatar = meta.avatar || "🧠";
@@ -146,6 +152,8 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         syncUser(session.user);
+      } else {
+        useEduStore.getState().validateStreakOnLoad();
       }
     });
 
