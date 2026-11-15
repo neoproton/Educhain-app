@@ -1208,6 +1208,95 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        {/* Studio Features Menu Bar (Pinned / Sticky Top Menu Bar) */}
+        <div className="border-t border-neutral-200/70 dark:border-white/10 bg-neutral-50/90 dark:bg-[#0f1728]/95 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-1.5 flex items-center justify-between gap-2">
+            
+            {/* Desktop & Tablet Horizontal Menu Bar */}
+            <nav
+              aria-label="Admin features menu bar"
+              className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 min-w-0 flex-1"
+              role="tablist"
+            >
+              {[
+                { id: "csv", label: "CSV Import", icon: FileSpreadsheet },
+                { id: "upload", label: "Add MCQ", icon: Plus },
+                { id: "manage", label: "Stages", count: allStages.length, icon: BookOpen },
+                { id: "chapters", label: "Chapters", icon: ListOrdered },
+                { id: "subjects", label: "Subjects", count: allSubjects.length, icon: Layers },
+                { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap },
+                { id: "levels", label: "XP & Streak", icon: Award },
+                { id: "users", label: "Scholars", icon: Users },
+                { id: "rooms", label: "Public Rooms", icon: Swords },
+                { id: "sql", label: "Cloud SQL", icon: Database },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      sound.playClick();
+                      setActiveTab(tab.id as AdminTabId);
+                    }}
+                    className={`h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                      isActive
+                        ? "bg-white dark:bg-[#223149] text-blue-600 dark:text-cyan-400 shadow-sm border border-neutral-200/90 dark:border-cyan-500/30"
+                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <Icon
+                      className={`w-3.5 h-3.5 shrink-0 ${
+                        isActive ? "text-blue-600 dark:text-cyan-400" : "text-neutral-400"
+                      }`}
+                    />
+                    <span>{tab.label}</span>
+                    {"count" in tab && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold leading-none ${
+                          isActive
+                            ? "bg-blue-50 text-blue-700 dark:bg-cyan-500/20 dark:text-cyan-300"
+                            : "bg-neutral-200/70 dark:bg-white/10 text-neutral-600 dark:text-neutral-400"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Dropdown Quick Selector */}
+            <div className="sm:hidden shrink-0">
+              <select
+                aria-label="Select admin feature"
+                value={activeTab}
+                onChange={(e) => {
+                  sound.playClick();
+                  setActiveTab(e.target.value as AdminTabId);
+                }}
+                className="h-8 px-2 rounded-lg text-xs font-bold border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#182438] text-neutral-900 dark:text-white shadow-xs focus:outline-none"
+              >
+                <option value="csv">📄 CSV Import</option>
+                <option value="upload">➕ Add MCQ</option>
+                <option value="manage">📖 Stages ({allStages.length})</option>
+                <option value="chapters">📑 Chapters</option>
+                <option value="subjects">📚 Subjects ({allSubjects.length})</option>
+                <option value="classes">🎓 Classes ({allClasses.length})</option>
+                <option value="levels">🎖️ XP & Streak</option>
+                <option value="users">👥 Scholars</option>
+                <option value="rooms">⚔️ Public Rooms</option>
+                <option value="sql">🗄️ Cloud SQL</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
       </header>
 
       {/* Notification Toast */}
@@ -1266,68 +1355,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Uniform Segmented Navigation Bar */}
-        <nav
-          aria-label="Admin sections"
-          className="mb-6 p-1 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-neutral-100/85 dark:bg-[#141f31] shadow-xs"
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-1" role="tablist">
-            {(
-              [
-                { id: "csv", label: "CSV Import", icon: FileSpreadsheet },
-                { id: "upload", label: "Add MCQ", icon: Plus },
-                { id: "manage", label: "Stages", count: allStages.length, icon: BookOpen },
-                { id: "chapters", label: "Chapters", icon: ListOrdered },
-                { id: "subjects", label: "Subjects", count: allSubjects.length, icon: Layers },
-                { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap },
-                { id: "levels", label: "XP & Streak", icon: Award },
-                { id: "users", label: "Scholars", icon: Users },
-                { id: "rooms", label: "Public Rooms", icon: Swords },
-                { id: "sql", label: "Cloud SQL", icon: Database },
-              ] as const
-            ).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => {
-                    sound.playClick();
-                    setActiveTab(tab.id);
-                  }}
-                  className={`h-9 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                    ""
-                  } ${
-                    isActive
-                      ? "bg-white dark:bg-[#223149] text-neutral-900 dark:text-white font-semibold shadow-sm ring-1 ring-neutral-900/5 dark:ring-white/10"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <Icon
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      isActive ? "text-blue-600 dark:text-cyan-400" : "text-neutral-500 dark:text-neutral-400"
-                    }`}
-                  />
-                  <span>{tab.label}</span>
-                  {"count" in tab && (
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold tabular-nums leading-none ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700 dark:bg-cyan-500/15 dark:text-cyan-300"
-                          : "bg-neutral-200/70 dark:bg-white/10 text-neutral-600 dark:text-neutral-300"
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+
 
         {/* ======================================================== */}
         {/* TAB 0: UPLOAD VIA CSV FILE (FOR SPECIFIC STAGE OF SPECIFIC CHAPTER OF SUBJECT) */}

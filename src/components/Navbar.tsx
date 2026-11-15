@@ -20,7 +20,8 @@ import {
   Sun, 
   Moon, 
   LogIn,
-  Swords
+  Swords,
+  ShieldCheck
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -226,6 +227,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <VolumeX className="w-4 h-4 text-slate-400 dark:text-slate-600" />
             )}
           </button>
+
+          {/* Admin Studio Quick Jump Link */}
+          <Link
+            href="/admin"
+            onClick={() => sound.playClick()}
+            title="Open Admin Studio Console"
+            className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-[#223149] bg-white dark:bg-[#182438] text-slate-600 dark:text-[#94A3B8] hover:text-[#2563EB] dark:hover:text-[#22D3EE] hover:border-[#2563EB]/40 dark:hover:border-[#22D3EE]/40 transition-all shadow-xs shrink-0 flex items-center gap-1"
+          >
+            <ShieldCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            <span className="hidden 2xl:inline text-xs font-semibold">Admin</span>
+          </Link>
 
           {/* Login button if guest */}
           {!hasSession && isGuest && onOpenAuth && (

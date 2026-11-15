@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEduStore } from "@/store/useEduStore";
 import { useCurriculumStore } from "@/store/useCurriculumStore";
 import { GradeType } from "@/types/curriculum";
@@ -306,6 +307,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </button>
               )
             )}
+          </div>
+
+          {/* Admin Studio Navigation Link */}
+          <div className="pt-1">
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className="w-full flex items-center justify-between py-2.5 px-3.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101827] hover:border-cyan-500/40 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all shadow-xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-cyan-500 shrink-0 group-hover:scale-110 transition-transform" />
+                <span>Admin Studio Console</span>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                Manage Features →
+              </span>
+            </Link>
           </div>
 
         </div>
