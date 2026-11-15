@@ -7,6 +7,7 @@ import { useCurriculumStore, CustomSubject } from "@/store/useCurriculumStore";
 import { Question, Stage, SubjectType, SchoolClass, GradeType } from "@/types/curriculum";
 import { sound } from "@/lib/audio";
 import { supabase } from "@/lib/supabase/client";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { EditStageModal } from "@/components/admin/EditStageModal";
 import { EditSubjectModal } from "@/components/admin/EditSubjectModal";
 import { EditClassModal } from "@/components/admin/EditClassModal";
@@ -55,7 +56,10 @@ import {
   KeyRound,
   X,
   Award,
-  Swords
+  Swords,
+  Menu,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { SleekIcon, SleekBadgeIcon } from "@/components/SleekIcon";
 
@@ -362,6 +366,19 @@ export default function AdminPage() {
 
   type AdminTabId = "csv" | "upload" | "manage" | "chapters" | "subjects" | "classes" | "levels" | "users" | "rooms" | "sql";
   const [activeTab, setActiveTab] = useState<AdminTabId>("csv");
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
+  useBodyScrollLock(isSideMenuOpen);
+
+  useEffect(() => {
+    if (!isSideMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsSideMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isSideMenuOpen]);
   
   // Chapter Ordering Management State
   const [orderGrade, setOrderGrade] = useState<string>("grade_9");
@@ -1089,42 +1106,94 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen overflow-x-clip educhain-bg text-neutral-900 dark:text-neutral-100 font-sans selection:bg-blue-600 selection:text-white relative">
       
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-neutral-200/80 dark:border-white/10 bg-white/85 dark:bg-[#101827]/90 backdrop-blur-xl">
+      {/* Pinned Top Studio Header with Side Pop-Out Menu Trigger */}
+      <header className="sticky top-0 z-30 border-b border-neutral-200/80 dark:border-white/10 bg-white/85 dark:bg-[#101827]/90 backdrop-blur-xl transition-colors duration-200 shadow-xs">
+        {/* Accent gradient line */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-[#2563EB] via-[#22D3EE] to-[#A78BFA] opacity-80" />
+
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+          
+          {/* Left: Back Link + Side Pop-Out Menu Trigger + Active Section Indicator */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-white/5 transition-colors shrink-0"
-              title="Return to Student Portal"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-white/5 transition-colors shrink-0 shadow-xs"
+              title="Return to Student Map"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+
+            {/* Side Pop-Out Menu Trigger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setIsSideMenuOpen(true);
+              }}
+              className="flex items-center gap-2 h-9 px-3 rounded-xl border border-blue-500/35 dark:border-cyan-500/40 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all shadow-xs cursor-pointer group shrink-0"
+              title="Open Side Pop-Out Menu (All 10 Admin Features)"
+            >
+              <Menu className="w-4 h-4 text-blue-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span>Menu</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-extrabold bg-blue-600 dark:bg-cyan-400 text-white dark:text-slate-900 leading-tight">
+                10
+              </span>
+            </button>
+
+            {/* Active Feature Badge Pill (Clicking it also pops out the side menu) */}
+            {(() => {
+              const tabMeta = {
+                csv: { label: "CSV Import", icon: FileSpreadsheet },
+                upload: { label: "Add MCQ", icon: Plus },
+                manage: { label: "Stages", icon: BookOpen, count: allStages.length },
+                chapters: { label: "Chapters", icon: ListOrdered },
+                subjects: { label: "Subjects", icon: Layers, count: allSubjects.length },
+                classes: { label: "Classes", icon: GraduationCap, count: allClasses.length },
+                levels: { label: "XP & Streak", icon: Award },
+                users: { label: "Scholars", icon: Users },
+                rooms: { label: "Public Rooms", icon: Swords },
+                sql: { label: "Cloud SQL", icon: Database },
+              }[activeTab];
+              const CurrentIcon = tabMeta.icon;
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setIsSideMenuOpen(true);
+                  }}
+                  className="hidden md:flex items-center gap-1.5 h-9 px-3 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] hover:border-neutral-300 dark:hover:border-white/20 text-xs font-semibold text-neutral-700 dark:text-neutral-200 shadow-xs cursor-pointer group shrink-0"
+                  title="Current Section (Click to open Side Pop-Out Menu)"
+                >
+                  <CurrentIcon className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400 shrink-0" />
+                  <span className="font-bold text-neutral-900 dark:text-white">{tabMeta.label}</span>
+                  {"count" in tabMeta && tabMeta.count !== undefined && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 dark:bg-cyan-500/20 text-blue-700 dark:text-cyan-300">
+                      {tabMeta.count}
+                    </span>
+                  )}
+                  <ChevronDown className="w-3 h-3 text-neutral-400 group-hover:translate-y-0.5 transition-transform shrink-0" />
+                </button>
+              );
+            })()}
+
+            {/* Studio Title */}
+            <div className="hidden lg:flex items-center gap-2 min-w-0 pl-1 border-l border-neutral-200 dark:border-white/10">
               <img
                 src="/logo.png"
                 alt="EduChain"
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
+                className="w-7 h-7 rounded-lg object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
               />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className="font-heading font-bold text-sm sm:text-base tracking-tight text-neutral-900 dark:text-white truncate">
-                    EduChain Studio
-                  </span>
-                  <span className="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:bg-cyan-500/15 dark:text-cyan-300 border border-blue-500/20 dark:border-cyan-500/25 shrink-0">
-                    Admin
-                  </span>
-                </div>
-                <p className="hidden sm:block text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
-                  Curriculum &amp; Assessment Console
-                </p>
-              </div>
+              <span className="font-heading font-extrabold text-sm tracking-tight text-neutral-900 dark:text-white truncate">
+                EduChain Studio
+              </span>
             </div>
           </div>
 
+          {/* Right Controls: Cloud Status, Sync, Student App Link, Lock */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Unified Cloud Status, Auth & Sync Control Bar */}
-            <div className="inline-flex items-center h-8 sm:h-9 rounded-lg border border-neutral-200/90 dark:border-white/10 bg-neutral-50/90 dark:bg-[#182438] divide-x divide-neutral-200/80 dark:divide-white/10 shadow-xs overflow-hidden">
+            <div className="inline-flex items-center h-8 sm:h-9 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-neutral-50/90 dark:bg-[#182438] divide-x divide-neutral-200/80 dark:divide-white/10 shadow-xs overflow-hidden">
               {cloudSyncStatus === "connected" ? (
                 <div
                   className="h-full px-2 sm:px-3 flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-200"
@@ -1132,8 +1201,8 @@ export default function AdminPage() {
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                   <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 hidden sm:block shrink-0" />
-                  <span className="hidden lg:inline">Cloud Synced</span>
-                  <span className="hidden sm:inline lg:hidden">Synced</span>
+                  <span className="hidden xl:inline">Cloud Synced</span>
+                  <span className="hidden sm:inline xl:hidden">Synced</span>
                 </div>
               ) : (
                 <button
@@ -1173,7 +1242,7 @@ export default function AdminPage() {
                 ) : (
                   <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 )}
-                <span className="hidden md:inline">{isCloudAdmin ? "Cloud Admin" : "Cloud Sign In"}</span>
+                <span className="hidden md:inline">{isCloudAdmin ? "Admin Auth" : "Sign In"}</span>
               </button>
 
               <button
@@ -1191,16 +1260,16 @@ export default function AdminPage() {
             <Link
               href="/"
               target="_blank"
-              className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-medium border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-white/5 shadow-xs transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-white/5 shadow-xs transition-colors text-xs font-semibold"
             >
-              <span>Student App</span>
+              <span>Student Portal</span>
               <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
             </Link>
 
             <button
               type="button"
               onClick={handleLockAdmin}
-              className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-xs font-medium border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-500/30 hover:bg-rose-50/70 dark:hover:bg-rose-500/10 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-600 dark:text-neutral-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-500/30 hover:bg-rose-50/70 dark:hover:bg-rose-500/10 shadow-xs transition-colors cursor-pointer"
               title="Lock admin session"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -1208,96 +1277,198 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Studio Features Menu Bar (Pinned / Sticky Top Menu Bar) */}
-        <div className="border-t border-neutral-200/70 dark:border-white/10 bg-neutral-50/90 dark:bg-[#0f1728]/95 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-1.5 flex items-center justify-between gap-2">
-            
-            {/* Desktop & Tablet Horizontal Menu Bar */}
-            <nav
-              aria-label="Admin features menu bar"
-              className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 min-w-0 flex-1"
-              role="tablist"
-            >
-              {[
-                { id: "csv", label: "CSV Import", icon: FileSpreadsheet },
-                { id: "upload", label: "Add MCQ", icon: Plus },
-                { id: "manage", label: "Stages", count: allStages.length, icon: BookOpen },
-                { id: "chapters", label: "Chapters", icon: ListOrdered },
-                { id: "subjects", label: "Subjects", count: allSubjects.length, icon: Layers },
-                { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap },
-                { id: "levels", label: "XP & Streak", icon: Award },
-                { id: "users", label: "Scholars", icon: Users },
-                { id: "rooms", label: "Public Rooms", icon: Swords },
-                { id: "sql", label: "Cloud SQL", icon: Database },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    onClick={() => {
-                      sound.playClick();
-                      setActiveTab(tab.id as AdminTabId);
-                    }}
-                    className={`h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                      isActive
-                        ? "bg-white dark:bg-[#223149] text-blue-600 dark:text-cyan-400 shadow-sm border border-neutral-200/90 dark:border-cyan-500/30"
-                        : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <Icon
-                      className={`w-3.5 h-3.5 shrink-0 ${
-                        isActive ? "text-blue-600 dark:text-cyan-400" : "text-neutral-400"
-                      }`}
-                    />
-                    <span>{tab.label}</span>
-                    {"count" in tab && (
-                      <span
-                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold leading-none ${
-                          isActive
-                            ? "bg-blue-50 text-blue-700 dark:bg-cyan-500/20 dark:text-cyan-300"
-                            : "bg-neutral-200/70 dark:bg-white/10 text-neutral-600 dark:text-neutral-400"
-                        }`}
-                      >
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+      {/* ======================================================== */}
+      {/* SIDE POP-OUT MENU DRAWER (ALL 10 ADMIN FEATURES)        */}
+      {/* ======================================================== */}
+      {isSideMenuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop Blur Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+            onClick={() => {
+              sound.playClick();
+              setIsSideMenuOpen(false);
+            }}
+          />
 
-            {/* Mobile Dropdown Quick Selector */}
-            <div className="sm:hidden shrink-0">
-              <select
-                aria-label="Select admin feature"
-                value={activeTab}
-                onChange={(e) => {
+          {/* Sliding Side Pop-Out Panel */}
+          <aside
+            aria-label="Admin Side Menu Drawer"
+            className="relative w-full max-w-[340px] sm:max-w-[380px] bg-white dark:bg-[#101827] border-r border-neutral-200/90 dark:border-white/10 shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-300 h-full"
+          >
+            {/* Pinned Drawer Header */}
+            <div className="p-4 sm:p-5 border-b border-neutral-200/80 dark:border-white/10 flex items-center justify-between gap-3 bg-neutral-50/80 dark:bg-[#141f31]/90">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src="/logo.png"
+                  alt="EduChain"
+                  className="w-9 h-9 rounded-xl object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-heading font-extrabold text-base text-neutral-900 dark:text-white truncate">
+                      EduChain Studio
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-600 dark:text-cyan-400 shrink-0">
+                      Admin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+                    Platform Management Console
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
                   sound.playClick();
-                  setActiveTab(e.target.value as AdminTabId);
+                  setIsSideMenuOpen(false);
                 }}
-                className="h-8 px-2 rounded-lg text-xs font-bold border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#182438] text-neutral-900 dark:text-white shadow-xs focus:outline-none"
+                aria-label="Close Side Menu"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/70 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               >
-                <option value="csv">📄 CSV Import</option>
-                <option value="upload">➕ Add MCQ</option>
-                <option value="manage">📖 Stages ({allStages.length})</option>
-                <option value="chapters">📑 Chapters</option>
-                <option value="subjects">📚 Subjects ({allSubjects.length})</option>
-                <option value="classes">🎓 Classes ({allClasses.length})</option>
-                <option value="levels">🎖️ XP & Streak</option>
-                <option value="users">👥 Scholars</option>
-                <option value="rooms">⚔️ Public Rooms</option>
-                <option value="sql">🗄️ Cloud SQL</option>
-              </select>
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-          </div>
+            {/* Scrollable Feature Sections */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-4">
+              {[
+                {
+                  category: "Curriculum & Quest Content",
+                  items: [
+                    { id: "manage", label: "Stages", count: allStages.length, icon: BookOpen, desc: "Stage progression nodes & question sets" },
+                    { id: "chapters", label: "Chapters", icon: ListOrdered, desc: "Syllabus chapter titles & ordering" },
+                    { id: "subjects", label: "Subjects", count: allSubjects.length, icon: Layers, desc: "Academic subject tags & badge colors" },
+                    { id: "classes", label: "Classes", count: allClasses.length, icon: GraduationCap, desc: "Grades, standards & level groups" },
+                    { id: "upload", label: "Add MCQ", icon: Plus, desc: "Manual quiz authoring & question builder" },
+                    { id: "csv", label: "CSV Import", icon: FileSpreadsheet, desc: "Bulk question spreadsheet ingestion" },
+                  ],
+                },
+                {
+                  category: "Gamification & Community",
+                  items: [
+                    { id: "levels", label: "XP & Streak", icon: Award, desc: "Daily streak rules & XP level progression" },
+                    { id: "users", label: "Scholars", icon: Users, desc: "Student profiles, stats & account management" },
+                    { id: "rooms", label: "Public Rooms", icon: Swords, desc: "Real-time multiplayer battle arena" },
+                  ],
+                },
+                {
+                  category: "Infrastructure & Database",
+                  items: [
+                    { id: "sql", label: "Cloud SQL", icon: Database, desc: "Supabase tables, RLS scripts & schema sync" },
+                  ],
+                },
+              ].map((section) => (
+                <div key={section.category} className="space-y-1">
+                  <div className="px-2 text-[10px] font-mono uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-bold">
+                    {section.category}
+                  </div>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            setActiveTab(item.id as AdminTabId);
+                            setIsSideMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all cursor-pointer text-left group ${
+                            isActive
+                              ? "bg-gradient-to-r from-blue-500/15 via-cyan-500/15 to-transparent border border-blue-500/30 dark:border-cyan-500/40 text-blue-700 dark:text-cyan-300 font-bold shadow-xs"
+                              : "hover:bg-neutral-100/80 dark:hover:bg-[#182438] text-neutral-700 dark:text-neutral-300 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                              isActive
+                                ? "bg-blue-600 text-white dark:bg-cyan-500 dark:text-black border-transparent shadow-xs"
+                                : "bg-neutral-100 dark:bg-white/5 border-neutral-200 dark:border-white/10 text-neutral-500 dark:text-neutral-400 group-hover:scale-105"
+                            }`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold truncate leading-tight flex items-center gap-1.5">
+                                <span>{item.label}</span>
+                                {isActive && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-cyan-400 shrink-0 animate-pulse" />
+                                )}
+                              </div>
+                              <div className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate leading-tight mt-0.5">
+                                {item.desc}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            {item.count !== undefined && (
+                              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold tabular-nums leading-none ${
+                                isActive
+                                  ? "bg-blue-500/20 text-blue-700 dark:text-cyan-300 border border-blue-500/30"
+                                  : "bg-neutral-200/80 dark:bg-white/10 text-neutral-600 dark:text-neutral-400"
+                              }`}>
+                                {item.count}
+                              </span>
+                            )}
+                            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${
+                              isActive ? "text-blue-600 dark:text-cyan-400 translate-x-0.5" : "text-neutral-300 dark:text-neutral-600 group-hover:translate-x-0.5"
+                            }`} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pinned Drawer Footer */}
+            <div className="p-3 sm:p-4 border-t border-neutral-200/80 dark:border-white/10 bg-neutral-50/80 dark:bg-[#141f31]/80 space-y-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/"
+                  target="_blank"
+                  onClick={() => setIsSideMenuOpen(false)}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-white/5 transition-all text-center flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Student App</span>
+                </Link>
+                <button
+                  type="button"
+                  disabled={isPushingCloud}
+                  onClick={() => {
+                    sound.playClick();
+                    handlePushToCloud();
+                  }}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-white/5 transition-all text-center flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isPushingCloud ? "animate-spin" : ""}`} />
+                  <span>Sync Cloud</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  setIsSideMenuOpen(false);
+                  handleLockAdmin();
+                }}
+                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Lock Admin Session</span>
+              </button>
+            </div>
+          </aside>
         </div>
-      </header>
+      )}
 
       {/* Notification Toast */}
       {notification && (
