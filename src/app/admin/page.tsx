@@ -7,13 +7,13 @@ import { useCurriculumStore, CustomSubject } from "@/store/useCurriculumStore";
 import { Question, Stage, SubjectType, SchoolClass, GradeType } from "@/types/curriculum";
 import { sound } from "@/lib/audio";
 import { supabase } from "@/lib/supabase/client";
-import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { EditStageModal } from "@/components/admin/EditStageModal";
 import { EditSubjectModal } from "@/components/admin/EditSubjectModal";
 import { EditClassModal } from "@/components/admin/EditClassModal";
 import { UsersManager } from "@/components/admin/UsersManager";
 import { ProgressionLevelsEditor } from "@/components/admin/ProgressionLevelsEditor";
 import { RoomsManager } from "@/components/admin/RoomsManager";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { 
   Plus, 
   Trash2, 
