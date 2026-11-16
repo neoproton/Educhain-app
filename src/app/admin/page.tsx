@@ -57,7 +57,6 @@ import {
   X,
   Award,
   Swords,
-  Menu,
   ChevronDown,
   ChevronRight
 } from "lucide-react";
@@ -1113,7 +1112,7 @@ export default function AdminPage() {
 
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
           
-          {/* Left: Back Link + Side Pop-Out Menu Trigger + Active Section Indicator */}
+          {/* Left: Back Link + Brand Title + Active Section Selector */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
@@ -1123,24 +1122,27 @@ export default function AdminPage() {
               <ArrowLeft className="w-4 h-4" />
             </Link>
 
-            {/* Side Pop-Out Menu Trigger Button */}
-            <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-                setIsSideMenuOpen(true);
-              }}
-              className="flex items-center gap-2 h-9 px-3 rounded-xl border border-blue-500/35 dark:border-cyan-500/40 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 text-blue-700 dark:text-cyan-300 font-bold text-xs transition-all shadow-xs cursor-pointer group shrink-0"
-              title="Open Side Pop-Out Menu (All 10 Admin Features)"
-            >
-              <Menu className="w-4 h-4 text-blue-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span>Menu</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-extrabold bg-blue-600 dark:bg-cyan-400 text-white dark:text-slate-900 leading-tight">
-                10
-              </span>
-            </button>
+            {/* Brand Logo & Studio Title */}
+            <div className="flex items-center gap-2 shrink-0">
+              <img
+                src="/logo.png"
+                alt="EduChain"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
+              />
+              <div className="hidden sm:flex items-center gap-1.5 min-w-0">
+                <span className="font-heading font-extrabold text-sm sm:text-base tracking-tight text-neutral-900 dark:text-white truncate">
+                  EduChain Studio
+                </span>
+                <span className="hidden md:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:bg-cyan-500/15 dark:text-cyan-300 border border-blue-500/20 dark:border-cyan-500/25 shrink-0">
+                  Admin
+                </span>
+              </div>
+            </div>
 
-            {/* Active Feature Badge Pill (Clicking it also pops out the side menu) */}
+            {/* Breadcrumb Separator */}
+            <div className="h-5 w-[1px] bg-neutral-200 dark:border-white/10 shrink-0" />
+
+            {/* Active Feature / Section Switcher (Single Unified Menu Trigger) */}
             {(() => {
               const tabMeta = {
                 csv: { label: "CSV Import", icon: FileSpreadsheet },
@@ -1162,11 +1164,13 @@ export default function AdminPage() {
                     sound.playClick();
                     setIsSideMenuOpen(true);
                   }}
-                  className="hidden md:flex items-center gap-1.5 h-9 px-3 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] hover:border-neutral-300 dark:hover:border-white/20 text-xs font-semibold text-neutral-700 dark:text-neutral-200 shadow-xs cursor-pointer group shrink-0"
-                  title="Current Section (Click to open Side Pop-Out Menu)"
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 px-2.5 sm:px-3 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-white dark:bg-[#182438] hover:border-blue-500/40 dark:hover:border-cyan-500/40 hover:bg-neutral-50 dark:hover:bg-[#1e2f47] text-xs font-semibold text-neutral-700 dark:text-neutral-200 shadow-xs cursor-pointer group transition-all shrink-0"
+                  title="Switch Admin Feature (10 Tools Available)"
                 >
                   <CurrentIcon className="w-3.5 h-3.5 text-blue-600 dark:text-cyan-400 shrink-0" />
-                  <span className="font-bold text-neutral-900 dark:text-white">{tabMeta.label}</span>
+                  <span className="font-bold text-neutral-900 dark:text-white max-w-[100px] xs:max-w-[130px] sm:max-w-none truncate">
+                    {tabMeta.label}
+                  </span>
                   {"count" in tabMeta && tabMeta.count !== undefined && (
                     <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 dark:bg-cyan-500/20 text-blue-700 dark:text-cyan-300">
                       {tabMeta.count}
@@ -1176,18 +1180,6 @@ export default function AdminPage() {
                 </button>
               );
             })()}
-
-            {/* Studio Title */}
-            <div className="hidden lg:flex items-center gap-2 min-w-0 pl-1 border-l border-neutral-200 dark:border-white/10">
-              <img
-                src="/logo.png"
-                alt="EduChain"
-                className="w-7 h-7 rounded-lg object-cover border border-neutral-200 dark:border-white/10 shadow-xs shrink-0"
-              />
-              <span className="font-heading font-extrabold text-sm tracking-tight text-neutral-900 dark:text-white truncate">
-                EduChain Studio
-              </span>
-            </div>
           </div>
 
           {/* Right Controls: Cloud Status, Sync, Student App Link, Lock */}
